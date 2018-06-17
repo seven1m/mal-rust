@@ -1,2 +1,3 @@
 #!/bin/bash
+export READLINE=false
 exec $(dirname $0)/target/release/${STEP:-stepA_mal} "${@}"
