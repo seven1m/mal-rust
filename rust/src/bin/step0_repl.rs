@@ -39,10 +39,7 @@ fn readline_rep(rl: &mut Editor<()>) -> Option<String> {
         Ok(line) => {
             Some(line)
         },
-        Err(ReadlineError::Interrupted) => {
-            None
-        },
-        Err(ReadlineError::Eof) => {
+        Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
             None
         },
         Err(err) => {
