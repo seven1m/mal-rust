@@ -1,0 +1,6 @@
+[package]
+name = "mal-rust"
+version = "0.1.0"
+authors = ["Tim Morgan <tim@timmorgan.org>"]
+
+[dependencies]
