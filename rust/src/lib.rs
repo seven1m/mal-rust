@@ -1,3 +1,3 @@
-extern crate rustyline;
+extern crate linefeed;
 
 pub mod readline;

@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Tim Morgan <tim@timmorgan.org>"]
 
 [dependencies]
-rustyline = "1.0.0"
+linefeed = "0.5.0"
