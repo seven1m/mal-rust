@@ -11,7 +11,11 @@ fn main() {
         match readline.get() {
             Some(line) => {
                 if line.len() > 0 {
-                    println!("{}", rep(line))
+                    let result = rep(line);
+                    match result {
+                        Ok(str) => println!("{}", str),
+                        Err(err) => println!("{}", err),
+                    }
                 }
             }
             None => break
@@ -20,14 +24,14 @@ fn main() {
     readline.save_history();
 }
 
-fn rep(input: String) -> String {
-    let out = read(input);
+fn rep(input: String) -> Result<String, MalError> {
+    let out = read(input)?;
     let out = eval(out);
     let out = print(out);
-    out
+    Ok(out)
 }
 
-fn read(arg: String) -> MalType {
+fn read(arg: String) -> Result<MalType, MalError> {
     read_str(&arg)
 }
 
@@ -36,5 +40,5 @@ fn eval(arg: MalType) -> MalType {
 }
 
 fn print(arg: MalType) -> String {
-    pr_str(&arg)
+    pr_str(&arg, true)
 }
