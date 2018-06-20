@@ -7,6 +7,7 @@ pub enum MalType {
     True,
     False,
     Number(i64),
+    Keyword(String),
     String(String),
     Symbol(String),
     List(Vec<MalType>),

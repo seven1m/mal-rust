@@ -7,6 +7,7 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
         &MalType::False => "false".to_string(),
         &MalType::Number(ref number) => number.to_string(),
         &MalType::Symbol(ref symbol) => symbol.to_owned(),
+        &MalType::Keyword(ref keyword) => ":".to_string() + keyword,
         &MalType::String(ref string) => {
             if print_readably {
                 format!("{:?}", string.to_owned())

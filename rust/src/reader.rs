@@ -49,17 +49,28 @@ fn read_form(reader: &mut Reader) -> MalResult {
     if token.len() == 0 {
         return Err(MalError::Parse("unexpected EOF".to_string()));
     }
-    match token.chars().next().unwrap() {
-        '(' => read_list(reader),
-        '"' => read_string(reader),
-        _   => read_atom(reader),
+    let mut chars = token.chars();
+    match chars.next().unwrap() {
+        '('  => read_list(reader),
+        '"'  => read_string(reader),
+        ':'  => read_keyword(reader),
+        '\'' => read_quote(reader, "quote"),
+        '~'  => {
+            if let Some('@') = chars.next() {
+                read_quote(reader, "splice-unquote")
+            } else {
+                read_quote(reader, "unquote")
+            }
+        }
+        '`'  => read_quote(reader, "quasiquote"),
+        _    => read_atom(reader),
     }
 }
 
 fn read_string(reader: &mut Reader) -> MalResult {
     let token = reader.next().unwrap();
     let mut chars = token.chars();
-    if chars.next().unwrap() != '"' { return Err(MalError::Parse("Expected start of a string!".to_string())) }
+    if chars.next().unwrap() != '"' { panic!("Expected start of a string!") }
     let mut str = String::new();
     loop {
         match chars.next() {
@@ -70,6 +81,21 @@ fn read_string(reader: &mut Reader) -> MalResult {
         }
     }
     Ok(MalType::String(str))
+}
+
+fn read_keyword(reader: &mut Reader) -> MalResult {
+    let token = reader.next().unwrap();
+    Ok(MalType::Keyword(token[1..].to_string()))
+}
+
+fn read_quote(reader: &mut Reader, expanded: &str) -> MalResult {
+    reader.next().unwrap();
+    let value = read_form(reader).unwrap();
+    let list = MalType::List(vec![
+        MalType::Symbol(expanded.to_string()),
+        value
+    ]);
+    Ok(list)
 }
 
 fn unescape_char(char: Option<char>) -> Result<char, MalError> {
@@ -141,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_read_str() {
-        let code = "(nil true false \"string\" (+ 2 (* 3 4)))";
+        let code = "(nil true false :foo \"string\" (+ 2 (* 3 4)))";
         let ast = read_str(code).unwrap();
         assert_eq!(
             ast,
@@ -149,6 +175,7 @@ mod tests {
                 MalType::Nil,
                 MalType::True,
                 MalType::False,
+                MalType::Keyword("foo".to_string()),
                 MalType::String("string".to_string()),
                 MalType::List(vec![
                     MalType::Symbol("+".to_string()),
@@ -170,6 +197,33 @@ mod tests {
         assert_eq!(
             err,
             MalError::Parse("unexpected EOF".to_string())
+        );
+    }
+
+    #[test]
+    fn test_quote() {
+        let code = "('foo ~bar `baz ~@buz)";
+        let ast = read_str(code).unwrap();
+        assert_eq!(
+            ast,
+            MalType::List(vec![
+                MalType::List(vec![
+                    MalType::Symbol("quote".to_string()),
+                    MalType::Symbol("foo".to_string())
+                ]),
+                MalType::List(vec![
+                    MalType::Symbol("unquote".to_string()),
+                    MalType::Symbol("bar".to_string())
+                ]),
+                MalType::List(vec![
+                    MalType::Symbol("quasiquote".to_string()),
+                    MalType::Symbol("baz".to_string())
+                ]),
+                MalType::List(vec![
+                    MalType::Symbol("splice-unquote".to_string()),
+                    MalType::Symbol("buz".to_string())
+                ]),
+            ])
         );
     }
 }
