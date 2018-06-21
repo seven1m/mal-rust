@@ -1,4 +1,5 @@
 use types::*;
+use std::collections::BTreeMap;
 
 pub fn pr_str(value: &MalType, print_readably: bool) -> String {
     match value {
@@ -15,17 +16,30 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
                 string.to_owned()
             }
         }
-        &MalType::List(ref list) => pr_list(list, "(", ")", print_readably),
-        &MalType::Vector(ref list) => pr_list(list, "[", "]", print_readably),
+        &MalType::List(ref list) => pr_list(list, '(', ')', print_readably),
+        &MalType::Vector(ref list) => pr_list(list, '[', ']', print_readably),
+        &MalType::HashMap(ref map) => pr_map(map, print_readably),
     }
 }
 
-fn pr_list(list: &Vec<MalType>, open: &str, close: &str, print_readably: bool) -> String {
+fn pr_list(list: &Vec<MalType>, open: char, close: char, print_readably: bool) -> String {
     let mut str = String::new();
-    str.push_str(open);
+    str.push(open);
     let atoms: Vec<String> = list.iter().map(|atom| pr_str(atom, print_readably)).collect();
     str.push_str(&atoms.join(" "));
-    str.push_str(close);
+    str.push(close);
+    str
+}
+
+fn pr_map(map: &BTreeMap<MalType, MalType>, print_readably: bool) -> String {
+    let mut str = String::new();
+    str.push('{');
+    let pairs: Vec<String> = map.iter().map(|(key, val)|
+        pr_str(key, print_readably) +
+        " " +
+        &pr_str(val, print_readably)).collect();
+    str.push_str(&pairs.join(" "));
+    str.push('}');
     str
 }
 

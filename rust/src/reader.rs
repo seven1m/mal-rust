@@ -3,6 +3,8 @@ use regex::Regex;
 
 use types::*;
 
+use std::collections::BTreeMap;
+
 pub struct Reader {
     tokens: Vec<String>,
     position: usize,
@@ -53,6 +55,7 @@ fn read_form(reader: &mut Reader) -> MalResult {
     match chars.next().unwrap() {
         '('  => read_list(reader),
         '['  => read_vector(reader),
+        '{'  => read_hash_map(reader),
         '"'  => read_string(reader),
         ':'  => read_keyword(reader),
         '\'' => read_quote(reader, "quote"),
@@ -121,11 +124,34 @@ fn read_vector(reader: &mut Reader) -> MalResult {
     Ok(MalType::Vector(list))
 }
 
+fn read_hash_map(reader: &mut Reader) -> MalResult {
+    let start = reader.next().unwrap();
+    if start != "{" { panic!("Expected start of hash-map!") }
+    let list = read_list_inner(reader, "}")?;
+    if list.len() % 2 != 0 {
+        return Err(MalError::Parse("Odd number of hash-map items!".to_string()));
+    }
+    let mut map = BTreeMap::new();
+    let mut list_iter = list.into_iter();
+    loop {
+        if let Some(key) = list_iter.next() {
+            let val = list_iter.next().unwrap();
+            map.insert(key, val);
+        } else {
+            break;
+        }
+    }
+    Ok(MalType::HashMap(map))
+}
+
 fn read_list_inner(reader: &mut Reader, close: &str) -> Result<Vec<MalType>, MalError> {
     let mut list: Vec<MalType> = Vec::new();
     loop {
         if let Some(token) = reader.peek() {
-            if token == close { break; }
+            if token == close {
+                reader.next();
+                break;
+            }
             let form = read_form(reader)?;
             list.push(form);
         } else {
@@ -214,6 +240,22 @@ mod tests {
                 MalType::Nil,
             ])
         );
+    }
+
+    #[test]
+    fn test_hash_map() {
+        let code = "{:foo 1 \"bar\" [2 3]}";
+        let ast = read_str(code).unwrap();
+        let mut map = BTreeMap::new();
+        map.insert(MalType::Keyword("foo".to_string()), MalType::Number(1));
+        map.insert(
+            MalType::String("bar".to_string()),
+            MalType::Vector(vec![
+                MalType::Number(2),
+                MalType::Number(3),
+            ])
+        );
+        assert_eq!(ast, MalType::HashMap(map));
     }
 
     #[test]
