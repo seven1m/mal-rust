@@ -70,6 +70,7 @@ fn read_form(reader: &mut Reader) -> MalResult {
             }
         }
         '`' => read_quote(reader, "quasiquote"),
+        '@' => read_quote(reader, "deref"),
         '^' => read_with_meta(reader),
         _ => read_atom(reader),
     }
@@ -288,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_quote() {
-        let code = "('foo ~bar `baz ~@buz)";
+        let code = "('foo ~bar `baz ~@fuz @buz)";
         let ast = read_str(code).unwrap();
         assert_eq!(
             ast,
@@ -307,6 +308,10 @@ mod tests {
                 ]),
                 MalType::List(vec![
                     MalType::Symbol("splice-unquote".to_string()),
+                    MalType::Symbol("fuz".to_string()),
+                ]),
+                MalType::List(vec![
+                    MalType::Symbol("deref".to_string()),
                     MalType::Symbol("buz".to_string()),
                 ]),
             ])
