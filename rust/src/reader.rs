@@ -70,6 +70,7 @@ fn read_form(reader: &mut Reader) -> MalResult {
             }
         }
         '`' => read_quote(reader, "quasiquote"),
+        '^' => read_with_meta(reader),
         _ => read_atom(reader),
     }
 }
@@ -101,6 +102,21 @@ fn read_quote(reader: &mut Reader, expanded: &str) -> MalResult {
     reader.next().unwrap();
     let value = read_form(reader).unwrap();
     let list = MalType::List(vec![MalType::Symbol(expanded.to_string()), value]);
+    Ok(list)
+}
+
+fn read_with_meta(reader: &mut Reader) -> MalResult {
+    let start = reader.next().unwrap();
+    if start != "^" {
+        panic!("Expected start of with-meta!")
+    }
+    let metadata = read_form(reader)?;
+    let value = read_form(reader)?;
+    let list = MalType::List(vec![
+        MalType::Symbol("with-meta".to_string()),
+        value,
+        metadata,
+    ]);
     Ok(list)
 }
 
@@ -293,6 +309,26 @@ mod tests {
                     MalType::Symbol("splice-unquote".to_string()),
                     MalType::Symbol("buz".to_string()),
                 ]),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_with_meta() {
+        let code = "^{\"a\" 1} [1 2 3]";
+        let ast = read_str(code).unwrap();
+        let mut map = BTreeMap::new();
+        map.insert(MalType::String("a".to_string()), MalType::Number(1));
+        assert_eq!(
+            ast,
+            MalType::List(vec![
+                MalType::Symbol("with-meta".to_string()),
+                MalType::Vector(vec![
+                    MalType::Number(1),
+                    MalType::Number(2),
+                    MalType::Number(3),
+                ]),
+                MalType::HashMap(map),
             ])
         );
     }
