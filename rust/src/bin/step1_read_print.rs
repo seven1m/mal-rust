@@ -31,7 +31,7 @@ fn rep(input: String) -> Result<String, MalError> {
     Ok(out)
 }
 
-fn read(arg: String) -> Result<MalType, MalError> {
+fn read(arg: String) -> MalResult {
     read_str(&arg)
 }
 
