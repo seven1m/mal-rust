@@ -5,6 +5,19 @@ use types::*;
 
 use std::collections::BTreeMap;
 
+macro_rules! consume_and_assert_eq {
+    ( $reader:expr, $expected:expr ) => {
+        {
+            let token = $reader.next().expect(
+                &format!("Expected {:?} but got None!", &$expected)
+            );
+            if token != $expected {
+                panic!(format!("Expected {:?} but got {:?}", &$expected, &token));
+            }
+        }
+    };
+}
+
 pub struct Reader {
     tokens: Vec<String>,
     position: usize,
@@ -107,10 +120,7 @@ fn read_quote(reader: &mut Reader, expanded: &str) -> MalResult {
 }
 
 fn read_with_meta(reader: &mut Reader) -> MalResult {
-    let start = reader.next().unwrap();
-    if start != "^" {
-        panic!("Expected start of with-meta!")
-    }
+    consume_and_assert_eq!(reader, "^");
     let metadata = read_form(reader)?;
     let value = read_form(reader)?;
     let list = MalType::List(vec![
@@ -130,28 +140,19 @@ fn unescape_char(char: Option<char>) -> Result<char, MalError> {
 }
 
 fn read_list(reader: &mut Reader) -> MalResult {
-    let start = reader.next().unwrap();
-    if start != "(" {
-        panic!("Expected start of list!")
-    }
+    consume_and_assert_eq!(reader, "(");
     let list = read_list_inner(reader, ")")?;
     Ok(MalType::List(list))
 }
 
 fn read_vector(reader: &mut Reader) -> MalResult {
-    let start = reader.next().unwrap();
-    if start != "[" {
-        panic!("Expected start of vector!")
-    }
+    consume_and_assert_eq!(reader, "[");
     let list = read_list_inner(reader, "]")?;
     Ok(MalType::Vector(list))
 }
 
 fn read_hash_map(reader: &mut Reader) -> MalResult {
-    let start = reader.next().unwrap();
-    if start != "{" {
-        panic!("Expected start of hash-map!")
-    }
+    consume_and_assert_eq!(reader, "{");
     let list = read_list_inner(reader, "}")?;
     if list.len() % 2 != 0 {
         return Err(MalError::Parse("Odd number of hash-map items!".to_string()));
