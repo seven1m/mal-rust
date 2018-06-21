@@ -52,6 +52,7 @@ fn read_form(reader: &mut Reader) -> MalResult {
     let mut chars = token.chars();
     match chars.next().unwrap() {
         '('  => read_list(reader),
+        '['  => read_vector(reader),
         '"'  => read_string(reader),
         ':'  => read_keyword(reader),
         '\'' => read_quote(reader, "quote"),
@@ -109,18 +110,29 @@ fn unescape_char(char: Option<char>) -> Result<char, MalError> {
 fn read_list(reader: &mut Reader) -> MalResult {
     let start = reader.next().unwrap();
     if start != "(" { panic!("Expected start of list!") }
+    let list = read_list_inner(reader, ")")?;
+    Ok(MalType::List(list))
+}
+
+fn read_vector(reader: &mut Reader) -> MalResult {
+    let start = reader.next().unwrap();
+    if start != "[" { panic!("Expected start of vector!") }
+    let list = read_list_inner(reader, "]")?;
+    Ok(MalType::Vector(list))
+}
+
+fn read_list_inner(reader: &mut Reader, close: &str) -> Result<Vec<MalType>, MalError> {
     let mut list: Vec<MalType> = Vec::new();
     loop {
         if let Some(token) = reader.peek() {
-            if token == ")" { break; }
+            if token == close { break; }
             let form = read_form(reader)?;
             list.push(form);
         } else {
             return Err(MalError::Parse("EOF while reading list".to_string()));
         }
-
     }
-    Ok(MalType::List(list))
+    Ok(list)
 }
 
 const NUMBER_MATCH: &str = r#"^\-?[\d\.]+$"#;
@@ -186,6 +198,20 @@ mod tests {
                         MalType::Number(4)
                     ])
                 ])
+            ])
+        );
+    }
+
+    #[test]
+    fn test_read_vector() {
+        let code = "[1 :foo nil]";
+        let ast = read_str(code).unwrap();
+        assert_eq!(
+            ast,
+            MalType::Vector(vec![
+                MalType::Number(1),
+                MalType::Keyword("foo".to_string()),
+                MalType::Nil,
             ])
         );
     }

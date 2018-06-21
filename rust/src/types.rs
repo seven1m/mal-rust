@@ -11,6 +11,7 @@ pub enum MalType {
     String(String),
     Symbol(String),
     List(Vec<MalType>),
+    Vector(Vec<MalType>),
 }
 
 pub type MalResult = Result<MalType, MalError>;

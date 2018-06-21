@@ -15,15 +15,18 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
                 string.to_owned()
             }
         }
-        &MalType::List(ref list) => {
-            let mut str = String::new();
-            str.push_str("(");
-            let atoms: Vec<String> = list.iter().map(|atom| pr_str(atom, print_readably)).collect();
-            str.push_str(&atoms.join(" "));
-            str.push_str(")");
-            str
-        }
+        &MalType::List(ref list) => pr_list(list, "(", ")", print_readably),
+        &MalType::Vector(ref list) => pr_list(list, "[", "]", print_readably),
     }
+}
+
+fn pr_list(list: &Vec<MalType>, open: &str, close: &str, print_readably: bool) -> String {
+    let mut str = String::new();
+    str.push_str(open);
+    let atoms: Vec<String> = list.iter().map(|atom| pr_str(atom, print_readably)).collect();
+    str.push_str(&atoms.join(" "));
+    str.push_str(close);
+    str
 }
 
 #[cfg(test)]
