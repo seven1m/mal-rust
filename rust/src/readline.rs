@@ -8,7 +8,7 @@ pub struct Readline {
 }
 
 const HISTORY_FILE: &str = ".mal-history";
- 
+
 impl Readline {
     pub fn new() -> Readline {
         let reader = Interface::new("mal").unwrap();
@@ -39,17 +39,15 @@ fn use_readline() -> bool {
 
 fn real_readline(reader: &mut Interface<DefaultTerminal>) -> Option<String> {
     match reader.read_line() {
-        Ok(read_result) => {
-            match read_result {
-                ReadResult::Input(line) => {
-                    if line.len() > 0 {
-                        reader.add_history(line.clone());
-                    }
-                    Some(line)
+        Ok(read_result) => match read_result {
+            ReadResult::Input(line) => {
+                if line.len() > 0 {
+                    reader.add_history(line.clone());
                 }
-                _ => None
+                Some(line)
             }
-        }
+            _ => None,
+        },
         Err(err) => {
             println!("Error: {:?}", err);
             None
@@ -60,7 +58,7 @@ fn real_readline(reader: &mut Interface<DefaultTerminal>) -> Option<String> {
 fn dumb_readline() -> Option<String> {
     print!("user> ");
     stdout().flush().unwrap();
-    let mut line=String::new();
+    let mut line = String::new();
     stdin().read_line(&mut line).unwrap();
     if line.bytes().len() > 0 {
         line.pop(); // remove newline

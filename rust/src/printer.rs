@@ -25,7 +25,9 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
 fn pr_list(list: &Vec<MalType>, open: char, close: char, print_readably: bool) -> String {
     let mut str = String::new();
     str.push(open);
-    let atoms: Vec<String> = list.iter().map(|atom| pr_str(atom, print_readably)).collect();
+    let atoms: Vec<String> = list.iter()
+        .map(|atom| pr_str(atom, print_readably))
+        .collect();
     str.push_str(&atoms.join(" "));
     str.push(close);
     str
@@ -34,10 +36,9 @@ fn pr_list(list: &Vec<MalType>, open: char, close: char, print_readably: bool) -
 fn pr_map(map: &BTreeMap<MalType, MalType>, print_readably: bool) -> String {
     let mut str = String::new();
     str.push('{');
-    let pairs: Vec<String> = map.iter().map(|(key, val)|
-        pr_str(key, print_readably) +
-        " " +
-        &pr_str(val, print_readably)).collect();
+    let pairs: Vec<String> = map.iter()
+        .map(|(key, val)| pr_str(key, print_readably) + " " + &pr_str(val, print_readably))
+        .collect();
     str.push_str(&pairs.join(" "));
     str.push('}');
     str
@@ -52,9 +53,6 @@ mod tests {
     fn test_pr_str() {
         let code = "(+ 2 (* 3 4))";
         let ast = read_str(code).unwrap();
-        assert_eq!(
-            pr_str(&ast, false),
-            code
-        );
+        assert_eq!(pr_str(&ast, false), code);
     }
 }

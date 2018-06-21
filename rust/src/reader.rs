@@ -31,7 +31,10 @@ impl Reader {
 
 pub fn read_str(code: &str) -> MalResult {
     let tokens = tokenizer(code);
-    let mut reader = Reader { tokens: tokens, position: 0 };
+    let mut reader = Reader {
+        tokens: tokens,
+        position: 0,
+    };
     read_form(&mut reader)
 }
 
@@ -53,35 +56,37 @@ fn read_form(reader: &mut Reader) -> MalResult {
     }
     let mut chars = token.chars();
     match chars.next().unwrap() {
-        '('  => read_list(reader),
-        '['  => read_vector(reader),
-        '{'  => read_hash_map(reader),
-        '"'  => read_string(reader),
-        ':'  => read_keyword(reader),
+        '(' => read_list(reader),
+        '[' => read_vector(reader),
+        '{' => read_hash_map(reader),
+        '"' => read_string(reader),
+        ':' => read_keyword(reader),
         '\'' => read_quote(reader, "quote"),
-        '~'  => {
+        '~' => {
             if let Some('@') = chars.next() {
                 read_quote(reader, "splice-unquote")
             } else {
                 read_quote(reader, "unquote")
             }
         }
-        '`'  => read_quote(reader, "quasiquote"),
-        _    => read_atom(reader),
+        '`' => read_quote(reader, "quasiquote"),
+        _ => read_atom(reader),
     }
 }
 
 fn read_string(reader: &mut Reader) -> MalResult {
     let token = reader.next().unwrap();
     let mut chars = token.chars();
-    if chars.next().unwrap() != '"' { panic!("Expected start of a string!") }
+    if chars.next().unwrap() != '"' {
+        panic!("Expected start of a string!")
+    }
     let mut str = String::new();
     loop {
         match chars.next() {
-            Some('"')  => break,
+            Some('"') => break,
             Some('\\') => str.push(unescape_char(chars.next())?),
-            Some(c)    => str.push(c),
-            None       => { return Err(MalError::Parse("Unexpected end of string!".to_string())) }
+            Some(c) => str.push(c),
+            None => return Err(MalError::Parse("Unexpected end of string!".to_string())),
         }
     }
     Ok(MalType::String(str))
@@ -95,10 +100,7 @@ fn read_keyword(reader: &mut Reader) -> MalResult {
 fn read_quote(reader: &mut Reader, expanded: &str) -> MalResult {
     reader.next().unwrap();
     let value = read_form(reader).unwrap();
-    let list = MalType::List(vec![
-        MalType::Symbol(expanded.to_string()),
-        value
-    ]);
+    let list = MalType::List(vec![MalType::Symbol(expanded.to_string()), value]);
     Ok(list)
 }
 
@@ -112,21 +114,27 @@ fn unescape_char(char: Option<char>) -> Result<char, MalError> {
 
 fn read_list(reader: &mut Reader) -> MalResult {
     let start = reader.next().unwrap();
-    if start != "(" { panic!("Expected start of list!") }
+    if start != "(" {
+        panic!("Expected start of list!")
+    }
     let list = read_list_inner(reader, ")")?;
     Ok(MalType::List(list))
 }
 
 fn read_vector(reader: &mut Reader) -> MalResult {
     let start = reader.next().unwrap();
-    if start != "[" { panic!("Expected start of vector!") }
+    if start != "[" {
+        panic!("Expected start of vector!")
+    }
     let list = read_list_inner(reader, "]")?;
     Ok(MalType::Vector(list))
 }
 
 fn read_hash_map(reader: &mut Reader) -> MalResult {
     let start = reader.next().unwrap();
-    if start != "{" { panic!("Expected start of hash-map!") }
+    if start != "{" {
+        panic!("Expected start of hash-map!")
+    }
     let list = read_list_inner(reader, "}")?;
     if list.len() % 2 != 0 {
         return Err(MalError::Parse("Odd number of hash-map items!".to_string()));
@@ -170,10 +178,10 @@ fn read_atom(reader: &mut Reader) -> MalResult {
         MalType::Number(token.parse::<i64>().unwrap_or(0))
     } else {
         match token.as_ref() {
-            "nil"   => MalType::Nil,
-            "true"  => MalType::True,
+            "nil" => MalType::Nil,
+            "true" => MalType::True,
             "false" => MalType::False,
-            _       => MalType::Symbol(token),
+            _ => MalType::Symbol(token),
         }
     };
     Ok(value)
@@ -221,9 +229,9 @@ mod tests {
                     MalType::List(vec![
                         MalType::Symbol("*".to_string()),
                         MalType::Number(3),
-                        MalType::Number(4)
-                    ])
-                ])
+                        MalType::Number(4),
+                    ]),
+                ]),
             ])
         );
     }
@@ -250,10 +258,7 @@ mod tests {
         map.insert(MalType::Keyword("foo".to_string()), MalType::Number(1));
         map.insert(
             MalType::String("bar".to_string()),
-            MalType::Vector(vec![
-                MalType::Number(2),
-                MalType::Number(3),
-            ])
+            MalType::Vector(vec![MalType::Number(2), MalType::Number(3)]),
         );
         assert_eq!(ast, MalType::HashMap(map));
     }
@@ -262,10 +267,7 @@ mod tests {
     fn test_unclosed_string() {
         let code = "\"abc";
         let err = read_str(code).unwrap_err();
-        assert_eq!(
-            err,
-            MalError::Parse("unexpected EOF".to_string())
-        );
+        assert_eq!(err, MalError::Parse("unexpected EOF".to_string()));
     }
 
     #[test]
@@ -277,19 +279,19 @@ mod tests {
             MalType::List(vec![
                 MalType::List(vec![
                     MalType::Symbol("quote".to_string()),
-                    MalType::Symbol("foo".to_string())
+                    MalType::Symbol("foo".to_string()),
                 ]),
                 MalType::List(vec![
                     MalType::Symbol("unquote".to_string()),
-                    MalType::Symbol("bar".to_string())
+                    MalType::Symbol("bar".to_string()),
                 ]),
                 MalType::List(vec![
                     MalType::Symbol("quasiquote".to_string()),
-                    MalType::Symbol("baz".to_string())
+                    MalType::Symbol("baz".to_string()),
                 ]),
                 MalType::List(vec![
                     MalType::Symbol("splice-unquote".to_string()),
-                    MalType::Symbol("buz".to_string())
+                    MalType::Symbol("buz".to_string()),
                 ]),
             ])
         );

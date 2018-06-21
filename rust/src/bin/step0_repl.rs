@@ -11,7 +11,7 @@ fn main() {
                     println!("{}", rep(line))
                 }
             }
-            None => break
+            None => break,
         }
     }
     readline.save_history();

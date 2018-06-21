@@ -18,7 +18,7 @@ fn main() {
                     }
                 }
             }
-            None => break
+            None => break,
         }
     }
     readline.save_history();

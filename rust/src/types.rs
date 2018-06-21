@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::collections::BTreeMap;
 
-#[derive(Debug,PartialEq,Eq,Hash,Ord,PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum MalType {
     Nil,
     True,
@@ -18,7 +18,7 @@ pub enum MalType {
 
 pub type MalResult = Result<MalType, MalError>;
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum MalError {
     Parse(String),
 }
