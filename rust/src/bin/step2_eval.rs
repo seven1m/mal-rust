@@ -7,6 +7,7 @@ use mal_rust::readline::Readline;
 use mal_rust::types::*;
 
 use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 fn main() {
     let mut readline = Readline::new();
@@ -90,6 +91,18 @@ fn eval_ast(ast: MalType, repl_env: &ReplEnv) -> MalResult {
             let results: Result<Vec<MalType>, MalError> =
                 vec.into_iter().map(|item| eval(item, repl_env)).collect();
             Ok(MalType::List(results?))
+        }
+        MalType::Vector(vec) => {
+            let results: Result<Vec<MalType>, MalError> =
+                vec.into_iter().map(|item| eval(item, repl_env)).collect();
+            Ok(MalType::Vector(results?))
+        }
+        MalType::HashMap(map) => {
+            let mut new_map = BTreeMap::new();
+            for (key, val) in map {
+                new_map.insert(key, eval(val, repl_env)?);
+            }
+            Ok(MalType::HashMap(new_map))
         }
         _ => Ok(ast),
     }
