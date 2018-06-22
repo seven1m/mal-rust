@@ -19,6 +19,7 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
         &MalType::List(ref list) => pr_list(list, '(', ')', print_readably),
         &MalType::Vector(ref list) => pr_list(list, '[', ']', print_readably),
         &MalType::HashMap(ref map) => pr_map(map, print_readably),
+        &MalType::Function(_) => "built-in function".to_string(),
     }
 }
 

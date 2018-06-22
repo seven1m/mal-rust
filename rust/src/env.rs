@@ -1,0 +1,86 @@
+use types::*;
+
+pub fn add(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let mut iter = MalNumberIter { items: args };
+        let mut answer = iter.next().unwrap()?;
+        for num in iter {
+            answer += num?;
+        }
+        Ok(MalType::Number(answer))
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one number".to_string(),
+        ))
+    }
+}
+
+pub fn subtract(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let mut iter = MalNumberIter { items: args };
+        let mut answer = iter.next().unwrap()?;
+        for num in iter {
+            answer -= num?;
+        }
+        Ok(MalType::Number(answer))
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one number".to_string(),
+        ))
+    }
+}
+
+pub fn multiply(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let mut iter = MalNumberIter { items: args };
+        let mut answer = iter.next().unwrap()?;
+        for num in iter {
+            answer *= num?;
+        }
+        Ok(MalType::Number(answer))
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one number".to_string(),
+        ))
+    }
+}
+
+pub fn divide(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let mut iter = MalNumberIter { items: args };
+        let mut answer = iter.next().unwrap()?;
+        for num in iter {
+            let num = num?;
+            if num == 0 {
+                return Err(MalError::DivideByZero);
+            } else {
+                answer /= num;
+            }
+        }
+        Ok(MalType::Number(answer))
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one number".to_string(),
+        ))
+    }
+}
+
+struct MalNumberIter<'a> {
+    items: &'a mut Vec<MalType>,
+}
+
+impl<'a> Iterator for MalNumberIter<'a> {
+    type Item = Result<i64, MalError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.items.len() == 0 {
+            return None;
+        }
+        let item = self.items.remove(0);
+        if let MalType::Number(num) = item {
+            Some(Ok(num))
+        } else {
+            Some(Err(MalError::NotANumber))
+        }
+    }
+}
