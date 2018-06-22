@@ -14,6 +14,7 @@ fn main() {
                     let result = rep(line);
                     match result {
                         Ok(str) => println!("{}", str),
+                        Err(MalError::BlankLine) => {}
                         Err(err) => println!("{}", err),
                     }
                 }

@@ -69,6 +69,7 @@ fn read_form(reader: &mut Reader) -> MalResult {
     }
     let mut chars = token.chars();
     match chars.next().unwrap() {
+        ';' => Err(MalError::BlankLine),
         '(' => read_list(reader),
         '[' => read_vector(reader),
         '{' => read_hash_map(reader),
@@ -337,5 +338,18 @@ mod tests {
                 MalType::HashMap(map),
             ])
         );
+    }
+
+    #[test]
+    fn test_comment() {
+        let code = "; comment";
+        let err = read_str(code).unwrap_err();
+        assert_eq!(err, MalError::BlankLine);
+        let code = "[1] ; comment";
+        let ast = read_str(code).unwrap();
+        assert_eq!(ast, MalType::Vector(vec![MalType::Number(1)]));
+        let code = "\"str\" ; comment";
+        let ast = read_str(code).unwrap();
+        assert_eq!(ast, MalType::String("str".to_string()));
     }
 }
