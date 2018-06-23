@@ -1,4 +1,39 @@
 use types::*;
+use std::collections::HashMap;
+
+#[derive(Debug)]
+pub struct Env<'a> {
+    pub outer: Option<&'a Env<'a>>,
+    pub data: HashMap<String, MalType>,
+}
+
+impl<'a> Env<'a> {
+    pub fn new(outer: Option<&'a Env>) -> Env<'a> {
+        Env {
+            outer: outer,
+            data: HashMap::new(),
+        }
+    }
+
+    pub fn set(&mut self, key: &str, val: MalType) {
+        self.data.insert(key.to_string(), val);
+    }
+
+    pub fn find(&self, key: &str) -> Option<&MalType> {
+        if let Some(val) = self.data.get(key) {
+            Some(val)
+        } else if let Some(ref outer) = self.outer {
+            outer.find(key)
+        } else {
+            None
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Result<&MalType, MalError> {
+        self.find(key)
+            .ok_or(MalError::SymbolUndefined(key.to_string()))
+    }
+}
 
 pub fn add(args: &mut Vec<MalType>) -> MalResult {
     if args.len() > 0 {
