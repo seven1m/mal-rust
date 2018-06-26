@@ -19,9 +19,9 @@ impl<'a> Env<'a> {
         self.data.insert(key.to_string(), val);
     }
 
-    pub fn find(&self, key: &str) -> Option<&MalType> {
-        if let Some(val) = self.data.get(key) {
-            Some(val)
+    pub fn find(&self, key: &str) -> Option<&Env> {
+        if self.data.contains_key(key) {
+            Some(self)
         } else if let Some(ref outer) = self.outer {
             outer.find(key)
         } else {
@@ -29,9 +29,13 @@ impl<'a> Env<'a> {
         }
     }
 
-    pub fn get(&self, key: &str) -> Result<&MalType, MalError> {
-        self.find(key)
-            .ok_or(MalError::SymbolUndefined(key.to_string()))
+    pub fn get(&self, key: &str) -> Result<MalType, MalError> {
+        if let Some(env) = self.find(key) {
+            if let Some(val) = env.data.get(key) {
+                return Ok(val.clone());
+            }
+        }
+        Err(MalError::SymbolUndefined(key.to_string()))
     }
 }
 
