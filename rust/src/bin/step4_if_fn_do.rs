@@ -297,6 +297,16 @@ mod tests {
         assert_eq!("7", result);
         let result = rep("((fn* [a b] (+ a b)) 2 3)".to_string(), &mut repl_env).unwrap();
         assert_eq!("5", result);
+        let result = rep(
+            "((fn* [a & more] (count more)) 2 3 4)".to_string(),
+            &mut repl_env,
+        ).unwrap();
+        assert_eq!("2", result);
+        let result = rep(
+            "((fn* (a & more) (count more)) 2)".to_string(),
+            &mut repl_env,
+        ).unwrap();
+        assert_eq!("0", result);
     }
 
     #[test]

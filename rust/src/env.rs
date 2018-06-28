@@ -22,12 +22,17 @@ impl Env {
 
     pub fn with_binds(outer: Option<&Env>, binds: Vec<MalType>, mut exprs: Vec<MalType>) -> Env {
         let env = Env::new(outer);
+        let mut is_more = false;
         for bind in binds {
-            if exprs.len() == 0 {
-                break;
-            }
             if let MalType::Symbol(name) = bind {
-                env.set(&name, exprs.remove(0));
+                if name == "&" {
+                    is_more = true;
+                } else if is_more {
+                    env.set(&name, MalType::List(exprs));
+                    break;
+                } else if exprs.len() > 0 {
+                    env.set(&name, exprs.remove(0));
+                }
             } else {
                 panic!("Expected a MalType::Symbol!");
             }
