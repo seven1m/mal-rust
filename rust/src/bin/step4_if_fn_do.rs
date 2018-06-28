@@ -1,6 +1,6 @@
 extern crate mal_rust;
 
-use mal_rust::env;
+use mal_rust::env::Env;
 use mal_rust::printer::pr_str;
 use mal_rust::reader::read_str;
 use mal_rust::readline::Readline;
@@ -30,15 +30,15 @@ fn main() {
     readline.save_history();
 }
 
-fn top_repl_env() -> env::Env {
-    let repl_env = env::Env::new(None);
+fn top_repl_env() -> Env {
+    let repl_env = Env::new(None);
     for (name, func) in NS.iter() {
         repl_env.set(name, MalType::Function(Box::new(*func)));
     }
     repl_env
 }
 
-fn rep(input: String, repl_env: &env::Env) -> Result<String, MalError> {
+fn rep(input: String, repl_env: &Env) -> Result<String, MalError> {
     let out = read(input)?;
     let out = eval(out, repl_env)?;
     let out = print(out);
@@ -49,7 +49,7 @@ fn read(code: String) -> MalResult {
     read_str(&code)
 }
 
-fn eval(mut ast: MalType, repl_env: &env::Env) -> MalResult {
+fn eval(mut ast: MalType, repl_env: &Env) -> MalResult {
     match ast {
         MalType::List(_) => {
             if list_len(&ast) == 0 {
@@ -84,7 +84,7 @@ fn print(ast: MalType) -> String {
     pr_str(&ast, true)
 }
 
-fn eval_ast(ast: MalType, repl_env: &env::Env) -> MalResult {
+fn eval_ast(ast: MalType, repl_env: &Env) -> MalResult {
     match ast {
         MalType::Symbol(symbol) => {
             if let Ok(val) = repl_env.get(&symbol) {
@@ -123,12 +123,12 @@ fn list_len(list: &MalType) -> usize {
 }
 
 fn call_lambda(
-    outer_env: env::Env,
+    outer_env: Env,
     binds: Vec<MalType>,
     mut body: Vec<MalType>,
     args: Vec<MalType>,
 ) -> MalResult {
-    let env = env::Env::with_binds(Some(&outer_env), binds, args);
+    let env = Env::with_binds(Some(&outer_env), binds, args);
     let expr = body.remove(0);
     eval(expr, &env)
 }
@@ -145,7 +145,7 @@ fn is_special_form(ast: &MalType) -> bool {
     false
 }
 
-fn process_special_form(ast: &mut MalType, repl_env: &env::Env) -> MalResult {
+fn process_special_form(ast: &mut MalType, repl_env: &Env) -> MalResult {
     if let &mut MalType::List(ref mut vec) = ast {
         if let MalType::Symbol(special) = vec.remove(0) {
             return match special.as_ref() {
@@ -161,7 +161,7 @@ fn process_special_form(ast: &mut MalType, repl_env: &env::Env) -> MalResult {
     panic!("Expected a List for a special form!")
 }
 
-fn special_def(vec: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
+fn special_def(vec: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let name = vec.remove(0);
     if let MalType::Symbol(ref sym) = name {
         let val = eval(vec.remove(0), repl_env)?;
@@ -175,8 +175,8 @@ fn special_def(vec: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
     }
 }
 
-fn special_let(vec: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
-    let mut inner_repl_env = env::Env::new(Some(&repl_env));
+fn special_let(vec: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
+    let mut inner_repl_env = Env::new(Some(&repl_env));
     let bindings = vec.remove(0);
     match bindings {
         MalType::Vector(mut bindings) | MalType::List(mut bindings) => {
@@ -208,7 +208,7 @@ fn special_let(vec: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
     }
 }
 
-fn special_do(list: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
+fn special_do(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let mut result = MalType::Nil;
     while list.len() > 0 {
         result = eval(list.remove(0), repl_env)?;
@@ -216,7 +216,7 @@ fn special_do(list: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
     Ok(result)
 }
 
-fn special_if(list: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
+fn special_if(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let condition = list.remove(0);
     match eval(condition, repl_env)? {
         MalType::False | MalType::Nil => {
@@ -230,7 +230,7 @@ fn special_if(list: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
     }
 }
 
-fn special_fn(list: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
+fn special_fn(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let args = list.remove(0);
     match args {
         MalType::List(args) | MalType::Vector(args) => {
