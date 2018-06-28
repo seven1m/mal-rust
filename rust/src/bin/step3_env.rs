@@ -1,5 +1,6 @@
 extern crate mal_rust;
 
+use mal_rust::core;
 use mal_rust::env;
 use mal_rust::printer::pr_str;
 use mal_rust::reader::read_str;
@@ -11,10 +12,10 @@ use std::collections::BTreeMap;
 fn main() {
     let mut readline = Readline::new();
     let mut repl_env = env::Env::new(None);
-    repl_env.set("+", MalType::Function(Box::new(env::add)));
-    repl_env.set("-", MalType::Function(Box::new(env::subtract)));
-    repl_env.set("*", MalType::Function(Box::new(env::multiply)));
-    repl_env.set("/", MalType::Function(Box::new(env::divide)));
+    repl_env.set("+", MalType::Function(Box::new(core::add)));
+    repl_env.set("-", MalType::Function(Box::new(core::subtract)));
+    repl_env.set("*", MalType::Function(Box::new(core::multiply)));
+    repl_env.set("/", MalType::Function(Box::new(core::divide)));
     loop {
         match readline.get() {
             Some(line) => {

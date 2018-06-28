@@ -5,16 +5,13 @@ use mal_rust::printer::pr_str;
 use mal_rust::reader::read_str;
 use mal_rust::readline::Readline;
 use mal_rust::types::*;
+use mal_rust::core::NS;
 
 use std::collections::BTreeMap;
 
 fn main() {
     let mut readline = Readline::new();
-    let mut repl_env = env::Env::new(None);
-    repl_env.set("+", MalType::Function(Box::new(env::add)));
-    repl_env.set("-", MalType::Function(Box::new(env::subtract)));
-    repl_env.set("*", MalType::Function(Box::new(env::multiply)));
-    repl_env.set("/", MalType::Function(Box::new(env::divide)));
+    let mut repl_env = top_repl_env();
     loop {
         match readline.get() {
             Some(line) => {
@@ -31,6 +28,14 @@ fn main() {
         }
     }
     readline.save_history();
+}
+
+fn top_repl_env() -> env::Env {
+    let repl_env = env::Env::new(None);
+    for (name, func) in NS.iter() {
+        repl_env.set(name, MalType::Function(Box::new(*func)));
+    }
+    repl_env
 }
 
 fn rep(input: String, repl_env: &env::Env) -> Result<String, MalError> {
@@ -249,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_def() {
-        let mut repl_env = env::Env::new(None);
+        let mut repl_env = top_repl_env();
         rep("(def! x 1)".to_string(), &mut repl_env).unwrap();
         let result = rep("x".to_string(), &mut repl_env).unwrap();
         assert_eq!("1", format!("{}", result));
@@ -257,16 +262,14 @@ mod tests {
 
     #[test]
     fn test_let() {
-        let mut repl_env = env::Env::new(None);
+        let mut repl_env = top_repl_env();
         let result = rep("(let* [x 1 y 2 z x] [x y z])".to_string(), &mut repl_env).unwrap();
         assert_eq!("[1 2 1]", format!("{}", result));
     }
 
     #[test]
     fn test_do() {
-        let mut repl_env = env::Env::new(None);
-        repl_env.set("+", MalType::Function(Box::new(env::add)));
-        repl_env.set("*", MalType::Function(Box::new(env::multiply)));
+        let mut repl_env = top_repl_env();
         let result = rep("(do 1 (def! x (+ 1 2)) (* 2 3))".to_string(), &mut repl_env).unwrap();
         assert_eq!("6", result);
         assert_eq!(MalType::Number(3), repl_env.get("x").unwrap());
@@ -274,8 +277,7 @@ mod tests {
 
     #[test]
     fn test_if() {
-        let mut repl_env = env::Env::new(None);
-        repl_env.set("+", MalType::Function(Box::new(env::add)));
+        let mut repl_env = top_repl_env();
         let result = rep("(if 1 2 3)".to_string(), &mut repl_env).unwrap();
         assert_eq!("2", result);
         let result = rep("(if false 2 3)".to_string(), &mut repl_env).unwrap();
@@ -288,8 +290,7 @@ mod tests {
 
     #[test]
     fn test_fn() {
-        let mut repl_env = env::Env::new(None);
-        repl_env.set("+", MalType::Function(Box::new(env::add)));
+        let mut repl_env = top_repl_env();
         let result = rep("(fn* [a] a)".to_string(), &mut repl_env).unwrap();
         assert_eq!("#<function>", result);
         let result = rep("((fn* [a] a) 7)".to_string(), &mut repl_env).unwrap();

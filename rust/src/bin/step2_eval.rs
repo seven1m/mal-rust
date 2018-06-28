@@ -1,6 +1,6 @@
 extern crate mal_rust;
 
-use mal_rust::env;
+use mal_rust::core;
 use mal_rust::printer::pr_str;
 use mal_rust::reader::read_str;
 use mal_rust::readline::Readline;
@@ -33,10 +33,10 @@ type ReplEnv = HashMap<String, MalType>;
 
 fn rep(input: String) -> Result<String, MalError> {
     let mut repl_env: ReplEnv = HashMap::new();
-    repl_env.insert("+".to_string(), MalType::Function(Box::new(env::add)));
-    repl_env.insert("-".to_string(), MalType::Function(Box::new(env::subtract)));
-    repl_env.insert("*".to_string(), MalType::Function(Box::new(env::multiply)));
-    repl_env.insert("/".to_string(), MalType::Function(Box::new(env::divide)));
+    repl_env.insert("+".to_string(), MalType::Function(Box::new(core::add)));
+    repl_env.insert("-".to_string(), MalType::Function(Box::new(core::subtract)));
+    repl_env.insert("*".to_string(), MalType::Function(Box::new(core::multiply)));
+    repl_env.insert("/".to_string(), MalType::Function(Box::new(core::divide)));
     let out = read(input)?;
     let out = eval(out, &repl_env)?;
     let out = print(out);
