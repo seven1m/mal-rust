@@ -20,6 +20,18 @@ impl Env {
         })))
     }
 
+    pub fn with_binds(outer: Option<&Env>, binds: Vec<MalType>, mut exprs: Vec<MalType>) -> Env {
+        let env = Env::new(outer);
+        for bind in binds {
+            if let MalType::Symbol(name) = bind {
+                env.set(&name, exprs.remove(0));
+            } else {
+                panic!("Expected a MalType::Symbol!");
+            }
+        }
+        env
+    }
+
     pub fn set(&self, key: &str, val: MalType) {
         self.0.borrow_mut().data.insert(key.to_string(), val);
     }

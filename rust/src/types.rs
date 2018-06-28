@@ -4,6 +4,7 @@ use std::cmp;
 use std::collections::BTreeMap;
 
 use printer;
+use env::Env;
 
 #[derive(Clone)]
 pub enum MalType {
@@ -18,6 +19,11 @@ pub enum MalType {
     Vector(Vec<MalType>),
     HashMap(BTreeMap<MalType, MalType>),
     Function(Box<fn(&mut Vec<MalType>) -> MalResult>),
+    Lambda {
+        env: Env,
+        args: Vec<MalType>,
+        body: Vec<MalType>,
+    },
 }
 
 impl cmp::PartialEq for MalType {
