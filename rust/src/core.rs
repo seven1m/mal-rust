@@ -1,4 +1,5 @@
 use types::*;
+use printer::pr_str;
 
 use std::collections::HashMap;
 
@@ -9,6 +10,16 @@ lazy_static! {
         ns.insert("-".to_string(), subtract as fn(&mut Vec<MalType>) -> MalResult);
         ns.insert("*".to_string(), multiply as fn(&mut Vec<MalType>) -> MalResult);
         ns.insert("/".to_string(), divide as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("prn".to_string(), prn as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("list".to_string(), list as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("list?".to_string(), is_list as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("empty?".to_string(), is_empty as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("count".to_string(), count as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("=".to_string(), is_equal as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("<".to_string(), is_lt as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert("<=".to_string(), is_lte as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert(">".to_string(), is_gt as fn(&mut Vec<MalType>) -> MalResult);
+        ns.insert(">=".to_string(), is_gte as fn(&mut Vec<MalType>) -> MalResult);
         ns
     };
 }
@@ -76,6 +87,163 @@ pub fn divide(args: &mut Vec<MalType>) -> MalResult {
             "Must pass at least one number".to_string(),
         ))
     }
+}
+
+fn prn(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let arg = args.remove(0);
+        pr_str(&arg, true);
+        Ok(MalType::Nil)
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to prn".to_string(),
+        ))
+    }
+}
+
+fn list(args: &mut Vec<MalType>) -> MalResult {
+    Ok(MalType::List(args.clone()))
+}
+
+fn mal_bool(b: bool) -> MalType {
+    if b {
+        MalType::True
+    } else {
+        MalType::False
+    }
+}
+
+fn is_list(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let arg = args.remove(0);
+        if let MalType::List(_) = arg {
+            Ok(MalType::True)
+        } else {
+            Ok(MalType::False)
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to list?".to_string(),
+        ))
+    }
+}
+
+fn is_empty(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let arg = args.remove(0);
+        match &arg {
+            &MalType::List(ref vec) | &MalType::Vector(ref vec) => Ok(mal_bool(vec.len() == 0)),
+            _ => Err(MalError::WrongArguments(
+                format!("Expected a list but got: {:?}", &arg).to_string(),
+            )),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to empty?".to_string(),
+        ))
+    }
+}
+
+fn count(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() > 0 {
+        let arg = args.remove(0);
+        match &arg {
+            &MalType::List(ref vec) | &MalType::Vector(ref vec) => {
+                Ok(MalType::Number(vec.len() as i64))
+            }
+            &MalType::Nil => Ok(MalType::Number(0)),
+            _ => Err(MalError::WrongArguments(
+                format!("Expected a list but got: {:?}", &arg).to_string(),
+            )),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to count".to_string(),
+        ))
+    }
+}
+
+fn is_list_like(val: &MalType) -> bool {
+    match val {
+        &MalType::List(_) | &MalType::Vector(_) => true,
+        _ => false,
+    }
+}
+
+fn are_lists_equal(list1: &MalType, list2: &MalType) -> bool {
+    match (list1, list2) {
+        (&MalType::List(ref vec1), &MalType::List(ref vec2))
+        | (&MalType::List(ref vec1), &MalType::Vector(ref vec2))
+        | (&MalType::Vector(ref vec1), &MalType::List(ref vec2))
+        | (&MalType::Vector(ref vec1), &MalType::Vector(ref vec2)) => {
+            if vec1.len() == vec2.len() {
+                for (index, item1) in vec1.iter().enumerate() {
+                    let item2 = &vec2[index];
+                    if !is_equal_bool(item1, item2) {
+                        return false;
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+fn is_equal_bool(val1: &MalType, val2: &MalType) -> bool {
+    if is_list_like(&val1) && is_list_like(&val2) {
+        are_lists_equal(&val1, &val2)
+    } else {
+        val1 == val2
+    }
+}
+
+fn is_equal(args: &mut Vec<MalType>) -> MalResult {
+    if args.len() == 2 {
+        let arg1 = args.remove(0);
+        let arg2 = args.remove(0);
+        Ok(mal_bool(is_equal_bool(&arg1, &arg2)))
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass exactly two arguments to =".to_string(),
+        ))
+    }
+}
+
+fn num_compare(args: &mut Vec<MalType>, compare: &Fn(i64, i64) -> bool) -> MalResult {
+    if args.len() == 2 {
+        let arg1 = args.remove(0);
+        let arg2 = args.remove(0);
+        if let (&MalType::Number(ref n1), &MalType::Number(ref n2)) = (&arg1, &arg2) {
+            Ok(mal_bool(compare(*n1, *n2)))
+        } else {
+            Err(MalError::WrongArguments(
+                format!("Expected numbers but got but got: {:?}, {:?}", &arg1, &arg2).to_string(),
+            ))
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass exactly two arguments to compare".to_string(),
+        ))
+    }
+}
+
+fn is_lt(args: &mut Vec<MalType>) -> MalResult {
+    num_compare(args, &|n1, n2| n1 < n2)
+}
+
+fn is_lte(args: &mut Vec<MalType>) -> MalResult {
+    num_compare(args, &|n1, n2| n1 <= n2)
+}
+
+fn is_gt(args: &mut Vec<MalType>) -> MalResult {
+    num_compare(args, &|n1, n2| n1 > n2)
+}
+
+fn is_gte(args: &mut Vec<MalType>) -> MalResult {
+    num_compare(args, &|n1, n2| n1 >= n2)
 }
 
 struct MalNumberIter<'a> {

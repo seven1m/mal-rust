@@ -299,4 +299,13 @@ mod tests {
         assert_eq!("5", result);
     }
 
+    #[test]
+    fn test_list_and_vec_equal() {
+        let mut repl_env = top_repl_env();
+        let result = rep(
+            "(= [1 2 (list 3 4 [5 6])] (list 1 2 [3 4 (list 5 6)]))".to_string(),
+            &mut repl_env,
+        ).unwrap();
+        assert_eq!("true", result);
+    }
 }

@@ -23,6 +23,9 @@ impl Env {
     pub fn with_binds(outer: Option<&Env>, binds: Vec<MalType>, mut exprs: Vec<MalType>) -> Env {
         let env = Env::new(outer);
         for bind in binds {
+            if exprs.len() == 0 {
+                break;
+            }
             if let MalType::Symbol(name) = bind {
                 env.set(&name, exprs.remove(0));
             } else {
