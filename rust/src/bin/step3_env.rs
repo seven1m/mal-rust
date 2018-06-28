@@ -129,59 +129,61 @@ fn is_special_form(ast: &MalType) -> bool {
 fn process_special_form(ast: &mut MalType, repl_env: &env::Env) -> MalResult {
     if let &mut MalType::List(ref mut vec) = ast {
         if let MalType::Symbol(special) = vec.remove(0) {
-            match special.as_ref() {
-                "def!" => {
-                    let name = vec.remove(0);
-                    if let MalType::Symbol(ref sym) = name {
-                        let val = eval(vec.remove(0), repl_env)?;
-                        repl_env.set(sym, val.clone());
-                        return Ok(val);
-                    } else {
-                        return Err(MalError::WrongArguments(format!(
-                            "Expected a symbol as the first argument to def! but got: {:?}",
-                            name
-                        )));
-                    }
-                }
-                "let*" => {
-                    let mut inner_repl_env = env::Env::new(Some(&repl_env));
-                    let bindings = vec.remove(0);
-                    match bindings {
-                        MalType::Vector(mut bindings) | MalType::List(mut bindings) => {
-                            if bindings.len() % 2 != 0 {
-                                return Err(MalError::Parse(
-                                    "Odd number of let* binding values!".to_string(),
-                                ));
-                            }
-                            loop {
-                                if bindings.len() == 0 {
-                                    break;
-                                }
-                                if let MalType::Symbol(name) = bindings.remove(0) {
-                                    let val = eval(bindings.remove(0), &mut inner_repl_env)?;
-                                    inner_repl_env.set(&name, val);
-                                } else {
-                                    return Err(MalError::Parse("Expected symbol".to_string()));
-                                }
-                            }
-                            let rest = vec.remove(0);
-                            return eval(rest, &mut inner_repl_env);
-                        }
-                        _ => {
-                            return Err(
-                                MalError::WrongArguments(format!(
-                                        "Expected a vector or list as the first argument to let* but got: {:?}",
-                                        bindings
-                                        ))
-                                );
-                        }
-                    }
-                }
+            return match special.as_ref() {
+                "def!" => process_special_def(vec, repl_env),
+                "let*" => process_special_let(vec, repl_env),
                 _ => panic!(format!("Unhandled special form: {}", &special)),
-            }
+            };
         }
     }
     panic!("Expected a List for a special form!")
+}
+
+fn process_special_def(vec: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
+    let name = vec.remove(0);
+    if let MalType::Symbol(ref sym) = name {
+        let val = eval(vec.remove(0), repl_env)?;
+        repl_env.set(sym, val.clone());
+        Ok(val)
+    } else {
+        Err(MalError::WrongArguments(format!(
+            "Expected a symbol as the first argument to def! but got: {:?}",
+            name
+        )))
+    }
+}
+
+fn process_special_let(vec: &mut Vec<MalType>, repl_env: &env::Env) -> MalResult {
+    let mut inner_repl_env = env::Env::new(Some(&repl_env));
+    let bindings = vec.remove(0);
+    match bindings {
+        MalType::Vector(mut bindings) | MalType::List(mut bindings) => {
+            if bindings.len() % 2 != 0 {
+                return Err(MalError::Parse(
+                    "Odd number of let* binding values!".to_string(),
+                ));
+            }
+            loop {
+                if bindings.len() == 0 {
+                    break;
+                }
+                if let MalType::Symbol(name) = bindings.remove(0) {
+                    let val = eval(bindings.remove(0), &mut inner_repl_env)?;
+                    inner_repl_env.set(&name, val);
+                } else {
+                    return Err(MalError::Parse("Expected symbol".to_string()));
+                }
+            }
+            let rest = vec.remove(0);
+            return eval(rest, &mut inner_repl_env);
+        }
+        _ => {
+            return Err(MalError::WrongArguments(format!(
+                "Expected a vector or list as the first argument to let* but got: {:?}",
+                bindings
+            )));
+        }
+    }
 }
 
 #[cfg(test)]
