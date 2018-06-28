@@ -1,37 +1,45 @@
 use types::*;
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug)]
-pub struct Env<'a> {
-    pub outer: Option<&'a Env<'a>>,
+pub struct EnvType {
+    pub outer: Option<Env>,
     pub data: HashMap<String, MalType>,
 }
 
-impl<'a> Env<'a> {
-    pub fn new(outer: Option<&'a Env>) -> Env<'a> {
-        Env {
-            outer: outer,
+#[derive(Debug, Clone)]
+pub struct Env(Rc<RefCell<EnvType>>);
+
+impl Env {
+    pub fn new(outer: Option<&Env>) -> Env {
+        Env(Rc::new(RefCell::new(EnvType {
+            outer: outer.map(|e| e.clone()),
             data: HashMap::new(),
-        }
+        })))
     }
 
-    pub fn set(&mut self, key: &str, val: MalType) {
-        self.data.insert(key.to_string(), val);
+    pub fn set(&self, key: &str, val: MalType) {
+        self.0.borrow_mut().data.insert(key.to_string(), val);
     }
 
-    pub fn find(&self, key: &str) -> Option<&Env> {
-        if self.data.contains_key(key) {
-            Some(self)
-        } else if let Some(ref outer) = self.outer {
-            outer.find(key)
+    pub fn find(&self, key: &str) -> Option<Env> {
+        if self.0.borrow().data.contains_key(key) {
+            Some(self.clone())
         } else {
-            None
+            let b = self.0.borrow();
+            if let Some(ref outer) = b.outer {
+                outer.find(key).map(|e| e.clone())
+            } else {
+                None
+            }
         }
     }
 
     pub fn get(&self, key: &str) -> Result<MalType, MalError> {
         if let Some(env) = self.find(key) {
-            if let Some(val) = env.data.get(key) {
+            if let Some(val) = env.0.borrow().data.get(key) {
                 return Ok(val.clone());
             }
         }

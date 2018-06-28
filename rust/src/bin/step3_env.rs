@@ -33,7 +33,7 @@ fn main() {
     readline.save_history();
 }
 
-fn rep(input: String, repl_env: &mut env::Env) -> Result<String, MalError> {
+fn rep(input: String, repl_env: &env::Env) -> Result<String, MalError> {
     let out = read(input)?;
     let out = eval(out, repl_env)?;
     let out = print(out);
@@ -44,7 +44,7 @@ fn read(code: String) -> MalResult {
     read_str(&code)
 }
 
-fn eval(mut ast: MalType, repl_env: &mut env::Env) -> MalResult {
+fn eval(mut ast: MalType, repl_env: &env::Env) -> MalResult {
     match ast {
         MalType::List(_) => {
             if list_len(&ast) == 0 {
@@ -77,7 +77,7 @@ fn print(ast: MalType) -> String {
     pr_str(&ast, true)
 }
 
-fn eval_ast(ast: MalType, repl_env: &mut env::Env) -> MalResult {
+fn eval_ast(ast: MalType, repl_env: &env::Env) -> MalResult {
     match ast {
         MalType::Symbol(symbol) => {
             if let Ok(val) = repl_env.get(&symbol) {
@@ -126,7 +126,7 @@ fn is_special_form(ast: &MalType) -> bool {
     false
 }
 
-fn process_special_form(ast: &mut MalType, repl_env: &mut env::Env) -> MalResult {
+fn process_special_form(ast: &mut MalType, repl_env: &env::Env) -> MalResult {
     if let &mut MalType::List(ref mut vec) = ast {
         if let MalType::Symbol(special) = vec.remove(0) {
             match special.as_ref() {
