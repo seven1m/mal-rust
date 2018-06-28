@@ -12,13 +12,6 @@ lazy_static! {
         ns
     };
 }
-/*
-
-  = note: expected type `std::collections::HashMap<_, std::boxed::Box<for<'r> fn(&'r mut std::vec::Vec<types::MalType>) -> std::result::Result<types::MalType, types::MalError>>, _>`
-             found type `std::collections::HashMap<_, std::boxed::Box<for<'r> fn(&'r mut std::vec::Vec<types::MalType>) -> std::result::Result<types::MalType, types::MalError> {core::add}>, _>`
-
-
-*/
 
 pub fn add(args: &mut Vec<MalType>) -> MalResult {
     if args.len() > 0 {
