@@ -59,7 +59,9 @@ fn eval(mut ast: MalType, repl_env: &Env) -> MalResult {
                     TailPosition::Return(ret) => return Ok(ret),
                     TailPosition::Call(new_ast, new_repl_env) => {
                         ast = new_ast;
-                        repl_env.replace(new_repl_env);
+                        if new_repl_env.is_some() {
+                            repl_env.replace(new_repl_env.unwrap());
+                        }
                     }
                 }
             } else {
@@ -206,7 +208,7 @@ fn special_let(vec: &mut Vec<MalType>, repl_env: &Env) -> TailPositionResult {
                 }
             }
             let rest = vec.remove(0);
-            Ok(TailPosition::Call(rest, inner_repl_env))
+            Ok(TailPosition::Call(rest, Some(inner_repl_env)))
             //return eval(rest, &mut inner_repl_env).map(|r| TailPosition::Return(r));
         }
         _ => Err(MalError::WrongArguments(format!(
@@ -220,7 +222,10 @@ fn special_do(list: &mut Vec<MalType>, repl_env: &Env) -> TailPositionResult {
     while list.len() >= 2 {
         eval(list.remove(0), repl_env)?;
     }
-    Ok(TailPosition::Call(list.remove(0), repl_env.to_owned()))
+    Ok(TailPosition::Call(
+        list.remove(0),
+        Some(repl_env.to_owned()),
+    ))
 }
 
 fn special_if(list: &mut Vec<MalType>, repl_env: &Env) -> TailPositionResult {
@@ -228,12 +233,12 @@ fn special_if(list: &mut Vec<MalType>, repl_env: &Env) -> TailPositionResult {
     match eval(condition, repl_env)? {
         MalType::False | MalType::Nil => {
             if list.len() >= 2 {
-                eval(list.remove(1), repl_env).map(|r| TailPosition::Return(r))
+                Ok(TailPosition::Call(list.remove(1), None))
             } else {
                 Ok(TailPosition::Return(MalType::Nil))
             }
         }
-        _ => eval(list.remove(0), repl_env).map(|r| TailPosition::Return(r)),
+        _ => Ok(TailPosition::Call(list.remove(0), None)),
     }
 }
 

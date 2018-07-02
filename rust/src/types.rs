@@ -110,7 +110,7 @@ impl Error for MalError {
 }
 
 pub enum TailPosition {
-    Call(MalType, Env),
+    Call(MalType, Option<Env>),
     Return(MalType),
 }
 
