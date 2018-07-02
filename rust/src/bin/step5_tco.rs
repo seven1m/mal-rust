@@ -38,8 +38,8 @@ fn top_repl_env() -> Env {
     repl_env
 }
 
-fn rep(input: String, repl_env: &Env) -> Result<String, MalError> {
-    let out = read(input)?;
+fn rep<S: Into<String>>(input: S, repl_env: &Env) -> Result<String, MalError> {
+    let out = read(input.into())?;
     let out = eval(out, repl_env)?;
     let out = print(out);
     Ok(out)
@@ -262,22 +262,22 @@ mod tests {
     #[test]
     fn test_def() {
         let mut repl_env = top_repl_env();
-        rep("(def! x 1)".to_string(), &mut repl_env).unwrap();
-        let result = rep("x".to_string(), &mut repl_env).unwrap();
+        rep("(def! x 1)", &mut repl_env).unwrap();
+        let result = rep("x", &mut repl_env).unwrap();
         assert_eq!("1", format!("{}", result));
     }
 
     #[test]
     fn test_let() {
         let mut repl_env = top_repl_env();
-        let result = rep("(let* [x 1 y 2 z x] [x y z])".to_string(), &mut repl_env).unwrap();
+        let result = rep("(let* [x 1 y 2 z x] [x y z])", &mut repl_env).unwrap();
         assert_eq!("[1 2 1]", format!("{}", result));
     }
 
     #[test]
     fn test_do() {
         let mut repl_env = top_repl_env();
-        let result = rep("(do 1 (def! x (+ 1 2)) (* 2 3))".to_string(), &mut repl_env).unwrap();
+        let result = rep("(do 1 (def! x (+ 1 2)) (* 2 3))", &mut repl_env).unwrap();
         assert_eq!("6", result);
         assert_eq!(MalType::Number(3), repl_env.get("x").unwrap());
     }
@@ -285,34 +285,28 @@ mod tests {
     #[test]
     fn test_if() {
         let mut repl_env = top_repl_env();
-        let result = rep("(if 1 2 3)".to_string(), &mut repl_env).unwrap();
+        let result = rep("(if 1 2 3)", &mut repl_env).unwrap();
         assert_eq!("2", result);
-        let result = rep("(if false 2 3)".to_string(), &mut repl_env).unwrap();
+        let result = rep("(if false 2 3)", &mut repl_env).unwrap();
         assert_eq!("3", result);
-        let result = rep("(if nil 2 (+ 2 3))".to_string(), &mut repl_env).unwrap();
+        let result = rep("(if nil 2 (+ 2 3))", &mut repl_env).unwrap();
         assert_eq!("5", result);
-        let result = rep("(if nil 2)".to_string(), &mut repl_env).unwrap();
+        let result = rep("(if nil 2)", &mut repl_env).unwrap();
         assert_eq!("nil", result);
     }
 
     #[test]
     fn test_fn() {
         let mut repl_env = top_repl_env();
-        let result = rep("(fn* [a] a)".to_string(), &mut repl_env).unwrap();
+        let result = rep("(fn* [a] a)", &mut repl_env).unwrap();
         assert_eq!("#<function>", result);
-        let result = rep("((fn* [a] a) 7)".to_string(), &mut repl_env).unwrap();
+        let result = rep("((fn* [a] a) 7)", &mut repl_env).unwrap();
         assert_eq!("7", result);
-        let result = rep("((fn* [a b] (+ a b)) 2 3)".to_string(), &mut repl_env).unwrap();
+        let result = rep("((fn* [a b] (+ a b)) 2 3)", &mut repl_env).unwrap();
         assert_eq!("5", result);
-        let result = rep(
-            "((fn* [a & more] (count more)) 2 3 4)".to_string(),
-            &mut repl_env,
-        ).unwrap();
+        let result = rep("((fn* [a & more] (count more)) 2 3 4)", &mut repl_env).unwrap();
         assert_eq!("2", result);
-        let result = rep(
-            "((fn* (a & more) (count more)) 2)".to_string(),
-            &mut repl_env,
-        ).unwrap();
+        let result = rep("((fn* (a & more) (count more)) 2)", &mut repl_env).unwrap();
         assert_eq!("0", result);
     }
 
@@ -320,7 +314,7 @@ mod tests {
     fn test_list_and_vec_equal() {
         let mut repl_env = top_repl_env();
         let result = rep(
-            "(= [1 2 (list 3 4 [5 6])] (list 1 2 [3 4 (list 5 6)]))".to_string(),
+            "(= [1 2 (list 3 4 [5 6])] (list 1 2 [3 4 (list 5 6)]))",
             &mut repl_env,
         ).unwrap();
         assert_eq!("true", result);
