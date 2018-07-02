@@ -108,3 +108,10 @@ impl Error for MalError {
         None
     }
 }
+
+pub enum TailPosition {
+    Call(MalType, Env),
+    Return(MalType),
+}
+
+pub type TailPositionResult = Result<TailPosition, MalError>;

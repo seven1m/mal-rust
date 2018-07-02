@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EnvType {
     pub outer: Option<Env>,
     pub data: HashMap<String, MalType>,
@@ -64,5 +64,17 @@ impl Env {
             }
         }
         Err(MalError::SymbolUndefined(key.to_string()))
+    }
+
+    pub fn replace(&self, env: Env) {
+        let inner = Rc::try_unwrap(env.0)
+            .expect("Multiple ref-counted copies!")
+            .into_inner();
+        self.0.replace(inner);
+    }
+
+    pub fn to_owned(&self) -> Env {
+        let env = (*self.0.borrow()).clone();
+        Env(Rc::new(RefCell::new(env)))
     }
 }
