@@ -65,16 +65,4 @@ impl Env {
         }
         Err(MalError::SymbolUndefined(key.to_string()))
     }
-
-    pub fn replace(&self, env: Env) {
-        let inner = Rc::try_unwrap(env.0)
-            .expect("Multiple ref-counted copies!")
-            .into_inner();
-        self.0.replace(inner);
-    }
-
-    pub fn to_owned(&self) -> Env {
-        let env = (*self.0.borrow()).clone();
-        Env(Rc::new(RefCell::new(env)))
-    }
 }
