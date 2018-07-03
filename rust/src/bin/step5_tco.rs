@@ -331,7 +331,11 @@ mod tests {
     fn test_tco() {
         let repl_env = top_repl_env();
         rep(
-            "(def! f (fn* [a i] (if (= i 0) a (f (+ a 1) (- i 1)))))",
+            "(def! f
+              (fn* [a i]
+                (if (= i 0)
+                    a
+                    (f (+ a 1) (- i 1)))))",
             repl_env.clone(),
         ).unwrap();
         let result = rep("(f 1 1000)", repl_env).unwrap();
