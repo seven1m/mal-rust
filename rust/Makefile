@@ -7,6 +7,7 @@ target/release/step3_env: build
 target/release/step4_if_fn_do: build
 target/release/step5_tco: build
 target/release/step6_file: build
+target/release/step7_quote: build
 
 build:
 	cargo build --release

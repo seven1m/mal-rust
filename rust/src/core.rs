@@ -37,6 +37,8 @@ lazy_static! {
         ns.insert("deref".to_string(), deref);
         ns.insert("reset!".to_string(), reset);
         ns.insert("swap!".to_string(), swap);
+        ns.insert("cons".to_string(), cons);
+        ns.insert("concat".to_string(), concat);
         ns
     };
 }
@@ -428,6 +430,46 @@ fn swap(mut args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
                 "Must pass at least two arguments to swap!".to_string(),
                 ))
     }
+}
+
+fn cons(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 2 {
+        let item = args.remove(0);
+        let list = args.remove(0);
+        match list {
+            MalType::List(vec) | MalType::Vector(vec) => {
+                let mut vec = vec.clone();
+                vec.insert(0, item);
+                Ok(MalType::List(vec))
+            }
+            _ => {
+                Err(MalError::WrongArguments(
+                        format!("Expected a list passed to cons but got: {:?}", list).to_string(),
+                        ))
+            }
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least two arguments to cons".to_string(),
+                ))
+    }
+}
+
+fn concat(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    let mut result = vec![];
+    while args.len() > 0 {
+        match args.remove(0) {
+            MalType::List(vec) | MalType::Vector(vec) => {
+                for item in vec {
+                    result.push(item);
+                }
+            },
+            _ => {
+                return Err(MalError::WrongArguments("Must pass a list to concat".to_string()));
+            }
+        }
+    }
+    Ok(MalType::List(result))
 }
 
 struct MalNumberIter<'a> {
