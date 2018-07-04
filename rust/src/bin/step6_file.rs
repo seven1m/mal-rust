@@ -8,10 +8,27 @@ use mal_rust::types::*;
 use mal_rust::core::NS;
 
 use std::collections::BTreeMap;
+use std::env;
+use std::process;
 
 fn main() {
     let mut readline = Readline::new();
     let repl_env = top_repl_env();
+    let args: Vec<_> = env::args().collect();
+    if args.len() > 1 {
+        let result = rep(
+            "(load-file \"".to_string() + &args[1] + "\")",
+            repl_env.clone(),
+        );
+        match result {
+            Err(MalError::BlankLine) => {}
+            Err(err) => {
+                println!("{}", err);
+                process::exit(1);
+            }
+            _ => process::exit(0),
+        }
+    }
     loop {
         match readline.get() {
             Some(line) => {
@@ -33,11 +50,26 @@ fn main() {
 fn top_repl_env() -> Env {
     let repl_env = Env::new(None);
     for (name, func) in NS.iter() {
-        repl_env.set(name, MalType::Function(Box::new(*func), None));
+        repl_env.set(
+            name,
+            MalType::Function(Box::new(*func), Some(repl_env.clone())),
+        );
     }
     repl_env.set(
         "eval",
         MalType::Function(Box::new(eval_fn), Some(repl_env.clone())),
+    );
+    let argv: Vec<_> = env::args().collect();
+    repl_env.set(
+        "*ARGV*",
+        MalType::List(if argv.len() >= 3 {
+            argv[2..]
+                .iter()
+                .map(|a| MalType::String(a.to_string()))
+                .collect()
+        } else {
+            vec![]
+        }),
     );
     rep(
         "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))",
@@ -112,7 +144,7 @@ fn eval_ast(ast: MalType, repl_env: Env) -> MalResult {
     match ast {
         MalType::Symbol(symbol) => {
             if let Ok(val) = repl_env.get(&symbol) {
-                Ok(val.to_owned())
+                Ok(val.clone())
             } else {
                 Err(MalError::SymbolUndefined(symbol.to_string()))
             }
@@ -346,13 +378,35 @@ mod tests {
         let repl_env = top_repl_env();
         rep(
             "(def! f
-              (fn* [a i]
-                (if (= i 0)
-                    a
-                    (f (+ a 1) (- i 1)))))",
+               (fn* [a i]
+                 (if (= i 0)
+                     a
+                     (f (+ a 1) (- i 1)))))",
             repl_env.clone(),
         ).unwrap();
         let result = rep("(f 1 1000)", repl_env).unwrap();
         assert_eq!("1001", result);
+    }
+
+    #[test]
+    fn test_atom() {
+        let repl_env = top_repl_env();
+        rep("(def! a (atom 1))", repl_env.clone()).unwrap();
+        let a = &repl_env.get("a").unwrap();
+        assert_eq!("(atom 1)", print(a.clone()));
+        rep("(reset! a 2)", repl_env.clone()).unwrap();
+        assert_eq!("(atom 2)", print(a.clone()));
+        let result = rep("(deref a)", repl_env.clone()).unwrap();
+        assert_eq!("2", result);
+        assert_eq!("(atom 2)", print(a.clone()));
+        rep("(swap! a + 2)", repl_env.clone()).unwrap();
+        assert_eq!("(atom 4)", print(a.clone()));
+    }
+
+    #[test]
+    fn test_load_file() {
+        let repl_env = top_repl_env();
+        let result = rep("(load-file \"../tests/incB.mal\")", repl_env.clone()).unwrap();
+        assert_eq!("\"incB.mal return string\"", result);
     }
 }

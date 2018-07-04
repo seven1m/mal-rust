@@ -6,6 +6,8 @@ use env::Env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 lazy_static! {
     pub static ref NS: HashMap<String, fn(&mut Vec<MalType>, Option<Env>) -> MalResult> = {
@@ -30,6 +32,11 @@ lazy_static! {
         ns.insert("not".to_string(), not);
         ns.insert("read-string".to_string(), read_string);
         ns.insert("slurp".to_string(), slurp);
+        ns.insert("atom".to_string(), atom);
+        ns.insert("atom?".to_string(), is_atom);
+        ns.insert("deref".to_string(), deref);
+        ns.insert("reset!".to_string(), reset);
+        ns.insert("swap!".to_string(), swap);
         ns
     };
 }
@@ -317,6 +324,108 @@ fn slurp(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     } else {
         Err(MalError::WrongArguments(
                 "Must pass at least one argument to slurp".to_string(),
+                ))
+    }
+}
+
+fn atom(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        Ok(MalType::Atom(Rc::new(RefCell::new(args.remove(0)))))
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least one argument to atom".to_string(),
+                ))
+    }
+}
+
+fn is_atom(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        if let MalType::Atom(_) = args.remove(0) {
+            Ok(mal_bool(true))
+        } else {
+            Ok(mal_bool(false))
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least one argument to atom?".to_string(),
+                ))
+    }
+}
+
+fn deref(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        if let MalType::Atom(val) = args.remove(0) {
+            Ok(val.borrow().clone())
+        } else {
+            Err(MalError::WrongArguments(
+                    "Must pass an atom to deref".to_string(),
+                    ))
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least one argument to deref".to_string(),
+                ))
+    }
+}
+
+fn reset(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 1 {
+        let mut atom = args.remove(0);
+        let new_val = args.remove(0);
+        if let MalType::Atom(ref mut val) = atom {
+            val.replace(new_val.clone());
+            Ok(new_val)
+        } else {
+            Err(MalError::WrongArguments(
+                    "Must pass an atom to reset".to_string(),
+                    ))
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least two arguments to reset!".to_string(),
+                ))
+    }
+}
+
+fn swap(mut args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
+    let top_env = env.expect("Expected Env passed to swap fn");
+    if args.len() > 1 {
+        let mut atom = args.remove(0);
+        let func = args.remove(0);
+        if let MalType::Atom(ref mut val) = atom {
+            args.insert(0, val.borrow().to_owned());
+            if let Ok(MalType::Function(eval_fn, _)) = top_env.get("eval") {
+                match func {
+                    MalType::Lambda { env, args: binds, mut body } => {
+                        let env = Env::with_binds(Some(&env), binds, args.to_owned());
+                        let expr = body.remove(0);
+                        let mut eval_args = vec![expr];
+                        let new_val = eval_fn(&mut eval_args, Some(env))?;
+                        val.replace(new_val.clone());
+                        Ok(new_val)
+                    },
+                    MalType::Function(func, env) => {
+                        let new_val = func(&mut args, env)?;
+                        val.replace(new_val.clone());
+                        Ok(new_val)
+                    },
+                    _ => {
+                        Err(MalError::WrongArguments(
+                                "Must pass a function to reset".to_string(),
+                                ))
+                    }
+                }
+            } else {
+                panic!("eval not a function!");
+            }
+        } else {
+            Err(MalError::WrongArguments(
+                    "Must pass an atom to reset".to_string(),
+                    ))
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least two arguments to swap!".to_string(),
                 ))
     }
 }

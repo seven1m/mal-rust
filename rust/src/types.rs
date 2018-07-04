@@ -3,6 +3,8 @@ use std::fmt;
 use std::cmp;
 use std::io;
 use std::collections::BTreeMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use printer;
 use env::Env;
@@ -28,6 +30,7 @@ pub enum MalType {
         args: Vec<MalType>,
         body: Vec<MalType>,
     },
+    Atom(Rc<RefCell<MalType>>),
 }
 
 impl cmp::PartialEq for MalType {

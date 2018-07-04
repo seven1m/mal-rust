@@ -69,7 +69,10 @@ fn read_form(reader: &mut Reader) -> MalResult {
     }
     let mut chars = token.chars();
     match chars.next().unwrap() {
-        ';' => Err(MalError::BlankLine),
+        ';' => {
+            reader.next();
+            Err(MalError::BlankLine)
+        }
         '(' => read_list(reader),
         '[' => read_vector(reader),
         '{' => read_hash_map(reader),
@@ -179,8 +182,11 @@ fn read_list_inner(reader: &mut Reader, close: &str) -> Result<Vec<MalType>, Mal
                 reader.next();
                 break;
             }
-            let form = read_form(reader)?;
-            list.push(form);
+            match read_form(reader) {
+                Err(MalError::BlankLine) => {}
+                Err(other) => return Err(other),
+                Ok(form) => list.push(form),
+            }
         } else {
             return Err(MalError::Parse("EOF while reading list".to_string()));
         }

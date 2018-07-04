@@ -21,6 +21,9 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
         &MalType::HashMap(ref map) => pr_map(map, print_readably),
         &MalType::Function(_, _) => "#<function>".to_string(),
         &MalType::Lambda { .. } => "#<function>".to_string(),
+        &MalType::Atom(ref val) => {
+            format!("(atom {})", pr_str(&(*val.borrow()), print_readably)).to_string()
+        }
     }
 }
 
