@@ -12,10 +12,10 @@ use std::collections::BTreeMap;
 fn main() {
     let mut readline = Readline::new();
     let mut repl_env = env::Env::new(None);
-    repl_env.set("+", MalType::Function(Box::new(core::add)));
-    repl_env.set("-", MalType::Function(Box::new(core::subtract)));
-    repl_env.set("*", MalType::Function(Box::new(core::multiply)));
-    repl_env.set("/", MalType::Function(Box::new(core::divide)));
+    repl_env.set("+", MalType::Function(Box::new(core::add), None));
+    repl_env.set("-", MalType::Function(Box::new(core::subtract), None));
+    repl_env.set("*", MalType::Function(Box::new(core::multiply), None));
+    repl_env.set("/", MalType::Function(Box::new(core::divide), None));
     loop {
         match readline.get() {
             Some(line) => {
@@ -57,8 +57,8 @@ fn eval(mut ast: MalType, repl_env: &env::Env) -> MalResult {
                 if let MalType::List(mut vec) = new_ast {
                     if vec.len() > 0 {
                         let first = vec.remove(0);
-                        if let MalType::Function(func) = first {
-                            func(&mut vec)
+                        if let MalType::Function(func, _) = first {
+                            func(&mut vec, None)
                         } else {
                             Err(MalError::NotAFunction(first))
                         }

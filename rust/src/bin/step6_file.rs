@@ -35,7 +35,19 @@ fn top_repl_env() -> Env {
     for (name, func) in NS.iter() {
         repl_env.set(name, MalType::Function(Box::new(*func), None));
     }
+    repl_env.set(
+        "eval",
+        MalType::Function(Box::new(eval_fn), Some(repl_env.clone())),
+    );
+    rep(
+        "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))",
+        repl_env.clone(),
+    ).expect("could not define load-file");
     repl_env
+}
+
+fn eval_fn(args: &mut Vec<MalType>, repl_env: Option<Env>) -> MalResult {
+    eval(args.remove(0), repl_env.unwrap())
 }
 
 fn rep<S: Into<String>>(input: S, repl_env: Env) -> Result<String, MalError> {
@@ -82,7 +94,9 @@ fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
         if vec.len() > 0 {
             let first = vec.remove(0);
             match first {
-                MalType::Function(func, _) => func(&mut vec, None).map(|r| TailPosition::Return(r)),
+                MalType::Function(func, env) => {
+                    func(&mut vec, env).map(|r| TailPosition::Return(r))
+                }
                 MalType::Lambda { env, args, body } => call_lambda(env, args, body, vec),
                 _ => Err(MalError::NotAFunction(first)),
             }

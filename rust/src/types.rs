@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use std::cmp;
+use std::io;
 use std::collections::BTreeMap;
 
 use printer;
@@ -18,7 +19,10 @@ pub enum MalType {
     List(Vec<MalType>),
     Vector(Vec<MalType>),
     HashMap(BTreeMap<MalType, MalType>),
-    Function(Box<fn(&mut Vec<MalType>) -> MalResult>),
+    Function(
+        Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
+        Option<Env>,
+    ),
     Lambda {
         env: Env,
         args: Vec<MalType>,
@@ -72,6 +76,7 @@ pub enum MalError {
     SymbolUndefined(String),
     WrongArguments(String),
     NotAFunction(MalType),
+    IO(String),
     NotANumber,
     DivideByZero,
     BlankLine,
@@ -87,6 +92,7 @@ impl fmt::Display for MalError {
             MalError::NotANumber => write!(f, "Error: Not a number"),
             MalError::DivideByZero => write!(f, "Error: Divide by zero"),
             MalError::BlankLine => write!(f, "Blank line"),
+            MalError::IO(ref err) => write!(f, "IO Error: {}", err),
         }
     }
 }
@@ -101,11 +107,18 @@ impl Error for MalError {
             MalError::NotANumber => "Not a number",
             MalError::DivideByZero => "Divide by zero",
             MalError::BlankLine => "Blank line",
+            MalError::IO(_) => "IO Error",
         }
     }
 
     fn cause(&self) -> Option<&Error> {
         None
+    }
+}
+
+impl From<io::Error> for MalError {
+    fn from(err: io::Error) -> MalError {
+        MalError::IO(format!("{}", err))
     }
 }
 

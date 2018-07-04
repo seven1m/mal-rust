@@ -33,10 +33,22 @@ type ReplEnv = HashMap<String, MalType>;
 
 fn rep(input: String) -> Result<String, MalError> {
     let mut repl_env: ReplEnv = HashMap::new();
-    repl_env.insert("+".to_string(), MalType::Function(Box::new(core::add)));
-    repl_env.insert("-".to_string(), MalType::Function(Box::new(core::subtract)));
-    repl_env.insert("*".to_string(), MalType::Function(Box::new(core::multiply)));
-    repl_env.insert("/".to_string(), MalType::Function(Box::new(core::divide)));
+    repl_env.insert(
+        "+".to_string(),
+        MalType::Function(Box::new(core::add), None),
+    );
+    repl_env.insert(
+        "-".to_string(),
+        MalType::Function(Box::new(core::subtract), None),
+    );
+    repl_env.insert(
+        "*".to_string(),
+        MalType::Function(Box::new(core::multiply), None),
+    );
+    repl_env.insert(
+        "/".to_string(),
+        MalType::Function(Box::new(core::divide), None),
+    );
     let out = read(input)?;
     let out = eval(out, &repl_env)?;
     let out = print(out);
@@ -57,8 +69,8 @@ fn eval(ast: MalType, repl_env: &ReplEnv) -> MalResult {
                 if let MalType::List(mut vec) = new_ast {
                     if vec.len() > 0 {
                         let first = vec.remove(0);
-                        if let MalType::Function(func) = first {
-                            func(&mut vec)
+                        if let MalType::Function(func, _) = first {
+                            func(&mut vec, None)
                         } else {
                             Err(MalError::NotAFunction(first))
                         }
