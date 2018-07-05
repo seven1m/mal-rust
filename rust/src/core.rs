@@ -39,6 +39,9 @@ lazy_static! {
         ns.insert("swap!".to_string(), swap);
         ns.insert("cons".to_string(), cons);
         ns.insert("concat".to_string(), concat);
+        ns.insert("nth".to_string(), nth);
+        ns.insert("first".to_string(), first);
+        ns.insert("rest".to_string(), rest);
         ns
     };
 }
@@ -398,7 +401,7 @@ fn swap(mut args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
             args.insert(0, val.borrow().to_owned());
             if let Ok(MalType::Function(eval_fn, _)) = top_env.get("eval") {
                 match func {
-                    MalType::Lambda { env, args: binds, mut body } => {
+                    MalType::Lambda { env, args: binds, mut body, .. } => {
                         let env = Env::with_binds(Some(&env), binds, args.to_owned());
                         let expr = body.remove(0);
                         let mut eval_args = vec![expr];
@@ -470,6 +473,92 @@ fn concat(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         }
     }
     Ok(MalType::List(result))
+}
+
+fn nth(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 2 {
+        let list = args.remove(0);
+        let index = raw_num(&args.remove(0))? as usize;
+        match list {
+            MalType::List(vec) | MalType::Vector(vec) => {
+                if vec.len() > index {
+                    Ok(vec[index].clone())
+                } else {
+                    Err(MalError::IndexOutOfBounds { size: vec.len(), index })
+                }
+            }
+            _ => {
+                Err(MalError::WrongArguments(
+                        format!("Expected a list passed to nth but got: {:?}", list).to_string(),
+                        ))
+            }
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least two arguments to nth".to_string(),
+                ))
+    }
+}
+
+fn first(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 1 {
+        let list = args.remove(0);
+        match list {
+            MalType::List(vec) | MalType::Vector(vec) => {
+                if vec.len() > 0 {
+                    Ok(vec[0].clone())
+                } else {
+                    Ok(MalType::Nil)
+                }
+            }
+            MalType::Nil => Ok(MalType::Nil),
+            _ => {
+                Err(MalError::WrongArguments(
+                        format!("Expected a list passed to first but got: {:?}", list).to_string(),
+                        ))
+            }
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least one argument to first".to_string(),
+                ))
+    }
+}
+
+fn rest(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 1 {
+        let list = args.remove(0);
+        match list {
+            MalType::List(mut vec) | MalType::Vector(mut vec) => {
+                if vec.len() > 0 {
+                    vec.remove(0);
+                    Ok(MalType::List(vec))
+                } else {
+                    Ok(MalType::List(vec![]))
+                }
+            }
+            MalType::Nil => Ok(MalType::List(vec![])),
+            _ => {
+                Err(MalError::WrongArguments(
+                        format!("Expected a list passed to rest but got: {:?}", list).to_string(),
+                        ))
+            }
+        }
+    } else {
+        Err(MalError::WrongArguments(
+                "Must pass at least one argument to rest".to_string(),
+                ))
+    }
+}
+
+fn raw_num(arg: &MalType) -> Result<i64, MalError> {
+    if let MalType::Number(num) = *arg {
+        Ok(num)
+    } else {
+        Err(MalError::WrongArguments(
+                format!("Expected a number but got: {:?}", arg).to_string()
+                ))
+    }
 }
 
 struct MalNumberIter<'a> {

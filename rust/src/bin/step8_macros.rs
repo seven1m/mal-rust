@@ -75,6 +75,14 @@ fn top_repl_env() -> Env {
         "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))",
         repl_env.clone(),
     ).expect("could not define load-file");
+    rep(
+        "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))",
+        repl_env.clone()
+    ).expect("could not define macro cond");
+    rep(
+        "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))",
+        repl_env.clone()
+    ).expect("could not define macro or");
     repl_env
 }
 
@@ -99,6 +107,11 @@ fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
             if list_len(&ast) == 0 {
                 return Ok(ast);
             } else {
+                ast = macroexpand(ast, repl_env.clone())?;
+                match ast {
+                    MalType::List(_) => {}
+                    _ => return Ok(eval_ast(ast, repl_env)?),
+                }
                 let result = if is_special_form(&ast) {
                     process_special_form(&mut ast, repl_env.clone())?
                 } else {
@@ -200,7 +213,8 @@ fn is_special_form(ast: &MalType) -> bool {
     if let &MalType::List(ref vec) = ast {
         if let &MalType::Symbol(ref sym) = &vec[0] {
             match sym.as_ref() {
-                "def!" | "let*" | "do" | "if" | "fn*" | "quote" | "quasiquote" => return true,
+                "def!" | "defmacro!" | "macroexpand" | "let*" | "do" | "if" | "fn*" | "quote"
+                | "quasiquote" => return true,
                 _ => {}
             }
         }
@@ -213,6 +227,8 @@ fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult 
         if let MalType::Symbol(special) = vec.remove(0) {
             return match special.as_ref() {
                 "def!" => special_def(vec, repl_env),
+                "defmacro!" => special_defmacro(vec, repl_env),
+                "macroexpand" => special_macroexpand(vec, repl_env),
                 "let*" => special_let(vec, repl_env),
                 "do" => special_do(vec, repl_env),
                 "if" => special_if(vec, repl_env),
@@ -238,6 +254,37 @@ fn special_def(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
             name
         )))
     }
+}
+
+fn special_defmacro(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
+    let name = vec.remove(0);
+    if let MalType::Symbol(ref sym) = name {
+        let mut val = eval(vec.remove(0), repl_env.clone())?;
+        if let MalType::Lambda {
+            ref mut is_macro, ..
+        } = val
+        {
+            *is_macro = true;
+        } else {
+            return Err(MalError::WrongArguments(format!(
+                "Expected a fn as the second argument to defmacro! but got: {:?}",
+                val
+            )));
+        }
+        repl_env.set(sym, val.clone());
+        Ok(TailPosition::Return(val))
+    } else {
+        Err(MalError::WrongArguments(format!(
+            "Expected a symbol as the first argument to defmacro! but got: {:?}",
+            name
+        )))
+    }
+}
+
+fn special_macroexpand(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
+    let ast = vec.remove(0);
+    let result = macroexpand(ast, repl_env)?;
+    Ok(TailPosition::Return(result))
 }
 
 fn special_let(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
@@ -380,6 +427,47 @@ fn cdr(arg: &MalType) -> MalType {
     }
 }
 
+fn is_macro_call(ast: &MalType, env: Env) -> bool {
+    if is_pair(ast) {
+        if let MalType::Symbol(ref sym) = car(ast) {
+            return match env.get(sym) {
+                Ok(MalType::Lambda { is_macro, .. }) => is_macro,
+                _ => false,
+            };
+        }
+    }
+    false
+}
+
+fn macroexpand(mut ast: MalType, env: Env) -> MalResult {
+    while is_macro_call(&ast, env.clone()) {
+        if let MalType::Symbol(ref sym) = car(&ast) {
+            let lambda = env.get(sym)?;
+            match lambda {
+                MalType::Lambda {
+                    env, args, body, ..
+                } => {
+                    let rest = vec_from_list(&cdr(&ast));
+                    let env = Env::with_binds(Some(&env), args, rest);
+                    let expr = body.clone().remove(0);
+                    ast = eval(expr, env)?;
+                }
+                _ => return Err(MalError::NotAFunction(lambda)),
+            }
+        } else {
+            panic!();
+        }
+    }
+    Ok(ast)
+}
+
+fn vec_from_list(ast: &MalType) -> Vec<MalType> {
+    match *ast {
+        MalType::List(ref vec) | MalType::Vector(ref vec) => vec.clone(),
+        _ => panic!("Not a list or vector!"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,5 +576,14 @@ mod tests {
         rep("(def! c (quote (1 \"b\" \"d\")))", repl_env.clone()).unwrap();
         let result = rep("(quasiquote (1 (splice-unquote c) 3))", repl_env.clone()).unwrap();
         assert_eq!("(1 1 \"b\" \"d\" 3)", result);
+    }
+
+    #[test]
+    fn test_defmacro() {
+        //(defmacro! one (fn* () 1))
+        let repl_env = top_repl_env();
+        rep("(defmacro! one (fn* () 1))", repl_env.clone()).unwrap();
+        let result = rep("(one)", repl_env.clone()).unwrap();
+        assert_eq!("1", result);
     }
 }

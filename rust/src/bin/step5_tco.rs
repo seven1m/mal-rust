@@ -83,7 +83,9 @@ fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
             let first = vec.remove(0);
             match first {
                 MalType::Function(func, _) => func(&mut vec, None).map(|r| TailPosition::Return(r)),
-                MalType::Lambda { env, args, body } => call_lambda(env, args, body, vec),
+                MalType::Lambda {
+                    env, args, body, ..
+                } => call_lambda(env, args, body, vec),
                 _ => Err(MalError::NotAFunction(first)),
             }
         } else {
@@ -253,6 +255,7 @@ fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
                 env: repl_env.clone(),
                 args: args,
                 body: vec![body],
+                is_macro: false,
             }))
         }
         _ => Err(MalError::WrongArguments(format!(

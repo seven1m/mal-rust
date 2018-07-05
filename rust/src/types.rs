@@ -29,6 +29,7 @@ pub enum MalType {
         env: Env,
         args: Vec<MalType>,
         body: Vec<MalType>,
+        is_macro: bool,
     },
     Atom(Rc<RefCell<MalType>>),
 }
@@ -83,6 +84,7 @@ pub enum MalError {
     NotANumber,
     DivideByZero,
     BlankLine,
+    IndexOutOfBounds { size: usize, index: usize },
 }
 
 impl fmt::Display for MalError {
@@ -91,11 +93,15 @@ impl fmt::Display for MalError {
             MalError::Parse(ref msg) => write!(f, "Parse error: {}", msg),
             MalError::SymbolUndefined(ref sym) => write!(f, "Symbol undefined: {}", sym),
             MalError::WrongArguments(ref msg) => write!(f, "Wrong arguments: {}", msg),
-            MalError::NotAFunction(ref val) => write!(f, "Error: Not a function: {:?}", val),
+            MalError::NotAFunction(ref val) => write!(f, "Not a function: {:?}", val),
+            MalError::IO(ref err) => write!(f, "IO Error: {}", err),
             MalError::NotANumber => write!(f, "Error: Not a number"),
             MalError::DivideByZero => write!(f, "Error: Divide by zero"),
             MalError::BlankLine => write!(f, "Blank line"),
-            MalError::IO(ref err) => write!(f, "IO Error: {}", err),
+            MalError::IndexOutOfBounds {
+                ref index,
+                ref size,
+            } => write!(f, "Index ({:?}) out of bounds ({:?})", index, size),
         }
     }
 }
@@ -107,10 +113,11 @@ impl Error for MalError {
             MalError::SymbolUndefined(_) => "Symbol undefined",
             MalError::WrongArguments(_) => "Wrong arguments",
             MalError::NotAFunction(_) => "Not a function",
+            MalError::IO(_) => "IO Error",
             MalError::NotANumber => "Not a number",
             MalError::DivideByZero => "Divide by zero",
             MalError::BlankLine => "Blank line",
-            MalError::IO(_) => "IO Error",
+            MalError::IndexOutOfBounds { .. } => "Index out of bounds",
         }
     }
 
