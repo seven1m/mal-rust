@@ -169,12 +169,8 @@ fn is_list(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn is_empty(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
         let arg = args.remove(0);
-        match &arg {
-            &MalType::List(ref vec) | &MalType::Vector(ref vec) => Ok(mal_bool(vec.len() == 0)),
-            _ => Err(MalError::WrongArguments(
-                    format!("Expected a list but got: {:?}", &arg).to_string(),
-                    )),
-        }
+        let vec = raw_vec(&arg)?;
+        Ok(mal_bool(vec.len() == 0))
     } else {
         Err(MalError::WrongArguments(
                 "Must pass at least one argument to empty?".to_string(),
@@ -185,15 +181,8 @@ fn is_empty(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn count(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
         let arg = args.remove(0);
-        match &arg {
-            &MalType::List(ref vec) | &MalType::Vector(ref vec) => {
-                Ok(MalType::Number(vec.len() as i64))
-            }
-            &MalType::Nil => Ok(MalType::Number(0)),
-            _ => Err(MalError::WrongArguments(
-                    format!("Expected a list but got: {:?}", &arg).to_string(),
-                    )),
-        }
+        let vec = raw_vec(&arg)?;
+        Ok(MalType::Number(vec.len() as i64))
     } else {
         Err(MalError::WrongArguments(
                 "Must pass at least one argument to count".to_string(),
@@ -252,15 +241,9 @@ fn is_equal(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 
 fn num_compare(args: &mut Vec<MalType>, compare: &Fn(i64, i64) -> bool) -> MalResult {
     if args.len() == 2 {
-        let arg1 = args.remove(0);
-        let arg2 = args.remove(0);
-        if let (&MalType::Number(ref n1), &MalType::Number(ref n2)) = (&arg1, &arg2) {
-            Ok(mal_bool(compare(*n1, *n2)))
-        } else {
-            Err(MalError::WrongArguments(
-                    format!("Expected numbers but got but got: {:?}, {:?}", &arg1, &arg2).to_string(),
-                    ))
-        }
+        let n1 = raw_num(&args.remove(0))?;
+        let n2 = raw_num(&args.remove(0))?;
+        Ok(mal_bool(compare(n1, n2)))
     } else {
         Err(MalError::WrongArguments(
                 "Must pass exactly two arguments to compare".to_string(),
@@ -439,18 +422,9 @@ fn cons(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 2 {
         let item = args.remove(0);
         let list = args.remove(0);
-        match list {
-            MalType::List(vec) | MalType::Vector(vec) => {
-                let mut vec = vec.clone();
-                vec.insert(0, item);
-                Ok(MalType::List(vec))
-            }
-            _ => {
-                Err(MalError::WrongArguments(
-                        format!("Expected a list passed to cons but got: {:?}", list).to_string(),
-                        ))
-            }
-        }
+        let mut vec = raw_vec(&list)?;
+        vec.insert(0, item);
+        Ok(MalType::List(vec))
     } else {
         Err(MalError::WrongArguments(
                 "Must pass at least two arguments to cons".to_string(),
@@ -461,15 +435,9 @@ fn cons(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn concat(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     let mut result = vec![];
     while args.len() > 0 {
-        match args.remove(0) {
-            MalType::List(vec) | MalType::Vector(vec) => {
-                for item in vec {
-                    result.push(item);
-                }
-            },
-            _ => {
-                return Err(MalError::WrongArguments("Must pass a list to concat".to_string()));
-            }
+        let vec = raw_vec(&args.remove(0))?;
+        for item in vec {
+            result.push(item);
         }
     }
     Ok(MalType::List(result))
@@ -479,19 +447,11 @@ fn nth(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 2 {
         let list = args.remove(0);
         let index = raw_num(&args.remove(0))? as usize;
-        match list {
-            MalType::List(vec) | MalType::Vector(vec) => {
-                if vec.len() > index {
-                    Ok(vec[index].clone())
-                } else {
-                    Err(MalError::IndexOutOfBounds { size: vec.len(), index })
-                }
-            }
-            _ => {
-                Err(MalError::WrongArguments(
-                        format!("Expected a list passed to nth but got: {:?}", list).to_string(),
-                        ))
-            }
+        let vec = raw_vec(&list)?;
+        if vec.len() > index {
+            Ok(vec[index].clone())
+        } else {
+            Err(MalError::IndexOutOfBounds { size: vec.len(), index })
         }
     } else {
         Err(MalError::WrongArguments(
@@ -557,6 +517,15 @@ fn raw_num(arg: &MalType) -> Result<i64, MalError> {
     } else {
         Err(MalError::WrongArguments(
                 format!("Expected a number but got: {:?}", arg).to_string()
+                ))
+    }
+}
+
+fn raw_vec(arg: &MalType) -> Result<Vec<MalType>, MalError> {
+    match *arg {
+        MalType::List(ref vec) | MalType::Vector(ref vec) => Ok(vec.clone()),
+        _ => Err(MalError::WrongArguments(
+                format!("Expected a list or vector but got: {:?}", arg).to_string()
                 ))
     }
 }
