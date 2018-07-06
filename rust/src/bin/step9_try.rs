@@ -63,7 +63,7 @@ fn top_repl_env() -> Env {
     let argv: Vec<_> = env::args().collect();
     repl_env.set(
         "*ARGV*",
-        MalType::List(if argv.len() >= 3 {
+        MalType::list(if argv.len() >= 3 {
             argv[2..]
                 .iter()
                 .map(|a| MalType::String(a.to_string()))
@@ -104,13 +104,13 @@ fn read(code: String) -> MalResult {
 
 fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
     loop {
-        if let MalType::List(_) = ast {
+        if let MalType::List(_, _) = ast {
             if list_len(&ast) == 0 {
                 return Ok(ast);
             } else {
                 ast = macroexpand(ast, repl_env.clone())?;
                 match ast {
-                    MalType::List(_) => {}
+                    MalType::List(_, _) => {}
                     _ => return Ok(eval_ast(ast, repl_env)?),
                 }
                 let result = if is_special_form(&ast) {
@@ -136,7 +136,7 @@ fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
 
 fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
     let new_ast = eval_ast(ast, repl_env)?;
-    if let MalType::List(mut vec) = new_ast {
+    if let MalType::List(mut vec, _) = new_ast {
         if vec.len() > 0 {
             let first = vec.remove(0);
             match first {
@@ -165,11 +165,11 @@ fn eval_ast(ast: MalType, repl_env: Env) -> MalResult {
                 Err(MalError::SymbolUndefined(symbol.to_string()))
             }
         }
-        MalType::List(vec) => {
+        MalType::List(vec, _) => {
             let results: Result<Vec<MalType>, MalError> = vec.into_iter()
                 .map(|item| eval(item, repl_env.clone()))
                 .collect();
-            Ok(MalType::List(results?))
+            Ok(MalType::list(results?))
         }
         MalType::Vector(vec, _) => {
             let results: Result<Vec<MalType>, MalError> = vec.into_iter()
@@ -194,7 +194,7 @@ fn print(ast: MalType) -> String {
 
 fn list_len(list: &MalType) -> usize {
     match *list {
-        MalType::List(ref vec) | MalType::Vector(ref vec, _) => vec.len(),
+        MalType::List(ref vec, _) | MalType::Vector(ref vec, _) => vec.len(),
         _ => panic!("Expected a list but got: {:?}", list),
     }
 }
@@ -211,7 +211,7 @@ fn call_lambda(
 }
 
 fn is_special_form(ast: &MalType) -> bool {
-    if let &MalType::List(ref vec) = ast {
+    if let &MalType::List(ref vec, _) = ast {
         if let &MalType::Symbol(ref sym) = &vec[0] {
             match sym.as_ref() {
                 "def!" | "defmacro!" | "macroexpand" | "let*" | "do" | "if" | "fn*" | "quote"
@@ -224,7 +224,7 @@ fn is_special_form(ast: &MalType) -> bool {
 }
 
 fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult {
-    if let &mut MalType::List(ref mut vec) = ast {
+    if let &mut MalType::List(ref mut vec, _) = ast {
         if let MalType::Symbol(special) = vec.remove(0) {
             return match special.as_ref() {
                 "def!" => special_def(vec, repl_env),
@@ -293,7 +293,7 @@ fn special_let(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let inner_repl_env = Env::new(Some(&repl_env));
     let bindings = vec.remove(0);
     match bindings {
-        MalType::Vector(mut bindings, _) | MalType::List(mut bindings) => {
+        MalType::Vector(mut bindings, _) | MalType::List(mut bindings, _) => {
             if bindings.len() % 2 != 0 {
                 return Err(MalError::Parse(
                     "Odd number of let* binding values!".to_string(),
@@ -345,7 +345,7 @@ fn special_if(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
 fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let args = list.remove(0);
     match args {
-        MalType::List(args) | MalType::Vector(args, _) => {
+        MalType::List(args, _) | MalType::Vector(args, _) => {
             let body = list.remove(0);
             Ok(TailPosition::Return(MalType::lambda(
                 repl_env.clone(),
@@ -373,12 +373,12 @@ fn special_quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> TailPositio
 
 fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
     if arg_list.len() == 0 {
-        return MalType::List(vec![]);
+        return MalType::list(vec![]);
     }
     let ast = arg_list.remove(0);
     if !is_pair(&ast) {
         let list = vec![MalType::Symbol("quote".to_string()), ast];
-        MalType::List(list)
+        MalType::list(list)
     } else if is_symbol_named(&car(&ast), "unquote") {
         car(&cdr(&ast))
     } else if is_pair(&car(&ast)) && is_symbol_named(&car(&car(&ast)), "splice-unquote") {
@@ -387,7 +387,7 @@ fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
             car(&cdr(&car(&ast))),
             quasiquote(&mut vec![cdr(&ast)], repl_env),
         ];
-        MalType::List(list)
+        MalType::list(list)
     } else {
         let mut first = vec![car(&ast)];
         let mut rest = vec![cdr(&ast)];
@@ -396,7 +396,7 @@ fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
             quasiquote(&mut first, repl_env.clone()),
             quasiquote(&mut rest, repl_env),
         ];
-        MalType::List(list)
+        MalType::list(list)
     }
 }
 
@@ -428,22 +428,22 @@ fn is_symbol_named(val: &MalType, name: &str) -> bool {
 
 fn is_pair(arg: &MalType) -> bool {
     match *arg {
-        MalType::List(_) | MalType::Vector(_, _) => list_len(arg) > 0,
+        MalType::List(_, _) | MalType::Vector(_, _) => list_len(arg) > 0,
         _ => false,
     }
 }
 
 fn car(arg: &MalType) -> MalType {
     match *arg {
-        MalType::List(ref list) | MalType::Vector(ref list, _) => list[0].clone(),
+        MalType::List(ref list, _) | MalType::Vector(ref list, _) => list[0].clone(),
         _ => panic!("Expected a list to car but got: {:?}", arg),
     }
 }
 
 fn cdr(arg: &MalType) -> MalType {
     match *arg {
-        MalType::List(ref list) | MalType::Vector(ref list, _) => {
-            MalType::List(list[1..].to_owned())
+        MalType::List(ref list, _) | MalType::Vector(ref list, _) => {
+            MalType::list(list[1..].to_owned())
         }
         _ => panic!("Expected a list to cdr but got: {:?}", arg),
     }

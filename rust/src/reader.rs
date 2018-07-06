@@ -119,7 +119,7 @@ fn read_keyword(reader: &mut Reader) -> MalResult {
 fn read_quote(reader: &mut Reader, expanded: &str) -> MalResult {
     reader.next().unwrap();
     let value = read_form(reader).unwrap();
-    let list = MalType::List(vec![MalType::Symbol(expanded.to_string()), value]);
+    let list = MalType::list(vec![MalType::Symbol(expanded.to_string()), value]);
     Ok(list)
 }
 
@@ -127,7 +127,7 @@ fn read_with_meta(reader: &mut Reader) -> MalResult {
     consume_and_assert_eq!(reader, "^");
     let metadata = read_form(reader)?;
     let value = read_form(reader)?;
-    let list = MalType::List(vec![
+    let list = MalType::list(vec![
         MalType::Symbol("with-meta".to_string()),
         value,
         metadata,
@@ -146,7 +146,7 @@ fn unescape_char(char: Option<char>) -> Result<char, MalError> {
 fn read_list(reader: &mut Reader) -> MalResult {
     consume_and_assert_eq!(reader, "(");
     let list = read_list_inner(reader, ")")?;
-    Ok(MalType::List(list))
+    Ok(MalType::list(list))
 }
 
 fn read_vector(reader: &mut Reader) -> MalResult {
@@ -242,16 +242,16 @@ mod tests {
         let ast = read_str(code).unwrap();
         assert_eq!(
             ast,
-            MalType::List(vec![
+            MalType::list(vec![
                 MalType::Nil,
                 MalType::True,
                 MalType::False,
                 MalType::Keyword("foo".to_string()),
                 MalType::String("string".to_string()),
-                MalType::List(vec![
+                MalType::list(vec![
                     MalType::Symbol("+".to_string()),
                     MalType::Number(2),
-                    MalType::List(vec![
+                    MalType::list(vec![
                         MalType::Symbol("*".to_string()),
                         MalType::Number(3),
                         MalType::Number(4),
@@ -301,24 +301,24 @@ mod tests {
         let ast = read_str(code).unwrap();
         assert_eq!(
             ast,
-            MalType::List(vec![
-                MalType::List(vec![
+            MalType::list(vec![
+                MalType::list(vec![
                     MalType::Symbol("quote".to_string()),
                     MalType::Symbol("foo".to_string()),
                 ]),
-                MalType::List(vec![
+                MalType::list(vec![
                     MalType::Symbol("unquote".to_string()),
                     MalType::Symbol("bar".to_string()),
                 ]),
-                MalType::List(vec![
+                MalType::list(vec![
                     MalType::Symbol("quasiquote".to_string()),
                     MalType::Symbol("baz".to_string()),
                 ]),
-                MalType::List(vec![
+                MalType::list(vec![
                     MalType::Symbol("splice-unquote".to_string()),
                     MalType::Symbol("fuz".to_string()),
                 ]),
-                MalType::List(vec![
+                MalType::list(vec![
                     MalType::Symbol("deref".to_string()),
                     MalType::Symbol("buz".to_string()),
                 ]),
@@ -334,7 +334,7 @@ mod tests {
         map.insert(MalType::String("a".to_string()), MalType::Number(1));
         assert_eq!(
             ast,
-            MalType::List(vec![
+            MalType::list(vec![
                 MalType::Symbol("with-meta".to_string()),
                 MalType::vector(vec![
                     MalType::Number(1),

@@ -61,12 +61,12 @@ fn read(code: String) -> MalResult {
 
 fn eval(ast: MalType, repl_env: &ReplEnv) -> MalResult {
     match ast {
-        MalType::List(_) => {
+        MalType::List(_, _) => {
             if list_len(&ast) == 0 {
                 Ok(ast)
             } else {
                 let new_ast = eval_ast(ast, repl_env)?;
-                if let MalType::List(mut vec) = new_ast {
+                if let MalType::List(mut vec, _) = new_ast {
                     if vec.len() > 0 {
                         let first = vec.remove(0);
                         if let MalType::Function(func, _) = first {
@@ -99,10 +99,10 @@ fn eval_ast(ast: MalType, repl_env: &ReplEnv) -> MalResult {
                 Err(MalError::SymbolUndefined(symbol.to_string()))
             }
         }
-        MalType::List(vec) => {
+        MalType::List(vec, _) => {
             let results: Result<Vec<MalType>, MalError> =
                 vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::List(results?))
+            Ok(MalType::list(results?))
         }
         MalType::Vector(vec, _) => {
             let results: Result<Vec<MalType>, MalError> =
@@ -121,7 +121,7 @@ fn eval_ast(ast: MalType, repl_env: &ReplEnv) -> MalResult {
 }
 
 fn list_len(list: &MalType) -> usize {
-    if let &MalType::List(ref vec) = list {
+    if let &MalType::List(ref vec, _) = list {
         vec.len()
     } else {
         panic!("Not a list!")

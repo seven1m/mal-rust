@@ -17,7 +17,7 @@ pub fn pr_str(value: &MalType, print_readably: bool) -> String {
                 string.to_owned()
             }
         }
-        MalType::List(ref list) => pr_list(list, '(', ')', print_readably),
+        MalType::List(ref list, _) => pr_list(list, '(', ')', print_readably),
         MalType::Vector(ref list, _) => pr_list(list, '[', ']', print_readably),
         MalType::HashMap(ref map, _) => pr_map(map, print_readably),
         MalType::Function(_, _) => "#<function>".to_string(),

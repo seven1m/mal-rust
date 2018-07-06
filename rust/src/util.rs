@@ -12,7 +12,7 @@ pub fn raw_num(arg: &MalType) -> Result<i64, MalError> {
 
 pub fn raw_vec(arg: &MalType) -> Result<Vec<MalType>, MalError> {
     match *arg {
-        MalType::List(ref vec) | MalType::Vector(ref vec, _) => Ok(vec.clone()),
+        MalType::List(ref vec, _) | MalType::Vector(ref vec, _) => Ok(vec.clone()),
         _ => Err(MalError::WrongArguments(
             format!("Expected a list or vector but got: {:?}", arg).to_string(),
         )),

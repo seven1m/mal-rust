@@ -174,7 +174,7 @@ fn pr_str_fn(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn list(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    Ok(MalType::List(args.clone()))
+    Ok(MalType::list(args.clone()))
 }
 
 fn mal_bool(b: bool) -> MalType {
@@ -188,7 +188,7 @@ fn mal_bool(b: bool) -> MalType {
 fn is_list(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
         let arg = args.remove(0);
-        if let MalType::List(_) = arg {
+        if let MalType::List(_, _) = arg {
             Ok(MalType::True)
         } else {
             Ok(MalType::False)
@@ -235,7 +235,7 @@ fn count(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
         let arg = args.remove(0);
         let len = match arg {
-            MalType::List(vec) | MalType::Vector(vec, _) => vec.len(),
+            MalType::List(vec, _) | MalType::Vector(vec, _) => vec.len(),
             MalType::Nil => 0,
             _ => {
                 return Err(MalError::WrongArguments(
@@ -253,7 +253,7 @@ fn count(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 
 fn is_list_like(val: &MalType) -> bool {
     match *val {
-        MalType::List(_) | MalType::Vector(_, _) => true,
+        MalType::List(_, _) | MalType::Vector(_, _) => true,
         _ => false,
     }
 }
@@ -267,9 +267,9 @@ fn is_hash_map(val: &MalType) -> bool {
 
 fn are_lists_equal(list1: &MalType, list2: &MalType) -> bool {
     match (list1, list2) {
-        (&MalType::List(ref vec1), &MalType::List(ref vec2))
-        | (&MalType::List(ref vec1), &MalType::Vector(ref vec2, _))
-        | (&MalType::Vector(ref vec1, _), &MalType::List(ref vec2))
+        (&MalType::List(ref vec1, _), &MalType::List(ref vec2, _))
+        | (&MalType::List(ref vec1, _), &MalType::Vector(ref vec2, _))
+        | (&MalType::Vector(ref vec1, _), &MalType::List(ref vec2, _))
         | (&MalType::Vector(ref vec1, _), &MalType::Vector(ref vec2, _)) => {
             if vec1.len() == vec2.len() {
                 for (index, item1) in vec1.iter().enumerate() {
@@ -519,7 +519,7 @@ fn cons(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         let list = args.remove(0);
         let mut vec = raw_vec(&list)?;
         vec.insert(0, item);
-        Ok(MalType::List(vec))
+        Ok(MalType::list(vec))
     } else {
         Err(MalError::WrongArguments(
             "Must pass at least two arguments to cons".to_string(),
@@ -535,7 +535,7 @@ fn concat(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
             result.push(item);
         }
     }
-    Ok(MalType::List(result))
+    Ok(MalType::list(result))
 }
 
 fn nth(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
@@ -562,7 +562,7 @@ fn first(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 1 {
         let list = args.remove(0);
         match list {
-            MalType::List(vec) | MalType::Vector(vec, _) => {
+            MalType::List(vec, _) | MalType::Vector(vec, _) => {
                 if vec.len() > 0 {
                     Ok(vec[0].clone())
                 } else {
@@ -585,15 +585,15 @@ fn rest(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 1 {
         let list = args.remove(0);
         match list {
-            MalType::List(mut vec) | MalType::Vector(mut vec, _) => {
+            MalType::List(mut vec, _) | MalType::Vector(mut vec, _) => {
                 if vec.len() > 0 {
                     vec.remove(0);
-                    Ok(MalType::List(vec))
+                    Ok(MalType::list(vec))
                 } else {
-                    Ok(MalType::List(vec![]))
+                    Ok(MalType::list(vec![]))
                 }
             }
-            MalType::Nil => Ok(MalType::List(vec![])),
+            MalType::Nil => Ok(MalType::list(vec![])),
             _ => Err(MalError::WrongArguments(
                 format!("Expected a list passed to rest but got: {:?}", list).to_string(),
             )),
@@ -642,7 +642,7 @@ fn map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
             let result = eval_func(lambda.clone(), &mut args)?;
             result_list.push(result);
         }
-        Ok(MalType::List(result_list))
+        Ok(MalType::list(result_list))
     } else {
         Err(MalError::WrongArguments(
             "Must pass at least two arguments to map".to_string(),
@@ -886,7 +886,7 @@ fn keys(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         let map = args.remove(0);
         if let MalType::HashMap(map, _) = map {
             let list = map.keys().map(|k| k.clone()).collect();
-            Ok(MalType::List(list))
+            Ok(MalType::list(list))
         } else {
             Err(MalError::WrongArguments(
                 "First argument must be a hash-map".to_string(),
@@ -904,7 +904,7 @@ fn vals(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         let map = args.remove(0);
         if let MalType::HashMap(map, _) = map {
             let list = map.values().map(|k| k.clone()).collect();
-            Ok(MalType::List(list))
+            Ok(MalType::list(list))
         } else {
             Err(MalError::WrongArguments(
                 "First argument must be a hash-map".to_string(),
@@ -953,8 +953,9 @@ fn meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         let arg = args.remove(0);
         match arg {
             MalType::Lambda { metadata, .. } => Ok(*metadata),
-            MalType::HashMap(_, metadata) => Ok(*metadata),
-            MalType::Vector(_, metadata) => Ok(*metadata),
+            MalType::List(_, metadata)
+            | MalType::Vector(_, metadata)
+            | MalType::HashMap(_, metadata) => Ok(*metadata),
             _ => Ok(MalType::Nil),
         }
     } else {
@@ -974,10 +975,9 @@ fn with_meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
             } => {
                 *metadata = Box::new(new_metadata.clone());
             }
-            MalType::HashMap(_, ref mut metadata) => {
-                *metadata = Box::new(new_metadata.clone());
-            }
-            MalType::Vector(_, ref mut metadata) => {
+            MalType::List(_, ref mut metadata)
+            | MalType::Vector(_, ref mut metadata)
+            | MalType::HashMap(_, ref mut metadata) => {
                 *metadata = Box::new(new_metadata.clone());
             }
             _ => {}
@@ -1047,11 +1047,11 @@ fn conj(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 2 {
         let list = args.remove(0);
         match list {
-            MalType::List(mut vec) => {
+            MalType::List(mut vec, _) => {
                 for new_item in args {
                     vec.insert(0, new_item.clone());
                 }
-                Ok(MalType::List(vec))
+                Ok(MalType::list(vec))
             }
             MalType::Vector(mut vec, _) => {
                 for new_item in args {
@@ -1078,7 +1078,7 @@ fn seq(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                 if string.len() == 0 {
                     Ok(MalType::Nil)
                 } else {
-                    Ok(MalType::List(
+                    Ok(MalType::list(
                         string
                             .chars()
                             .map(|c| MalType::String(c.to_string()))
@@ -1086,11 +1086,11 @@ fn seq(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                     ))
                 }
             }
-            MalType::List(vec) | MalType::Vector(vec, _) => {
+            MalType::List(vec, _) | MalType::Vector(vec, _) => {
                 if vec.len() == 0 {
                     Ok(MalType::Nil)
                 } else {
-                    Ok(MalType::List(vec))
+                    Ok(MalType::list(vec))
                 }
             }
             MalType::Nil => Ok(MalType::Nil),

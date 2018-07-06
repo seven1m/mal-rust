@@ -28,7 +28,7 @@ impl Env {
                 if name == "&" {
                     is_more = true;
                 } else if is_more {
-                    env.set(&name, MalType::List(exprs));
+                    env.set(&name, MalType::list(exprs));
                     break;
                 } else if exprs.len() > 0 {
                     env.set(&name, exprs.remove(0));
