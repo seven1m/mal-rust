@@ -263,7 +263,7 @@ fn is_list_like(val: &MalType) -> bool {
 
 fn is_hash_map(val: &MalType) -> bool {
     match *val {
-        MalType::HashMap(_) => true,
+        MalType::HashMap(_, _) => true,
         _ => false,
     }
 }
@@ -292,7 +292,7 @@ fn are_lists_equal(list1: &MalType, list2: &MalType) -> bool {
 
 fn are_hash_maps_equal(map1: &MalType, map2: &MalType) -> bool {
     match (map1, map2) {
-        (&MalType::HashMap(ref map1), &MalType::HashMap(ref map2)) => {
+        (&MalType::HashMap(ref map1, _), &MalType::HashMap(ref map2, _)) => {
             if map1.len() == map2.len() {
                 for (key1, item1) in map1.iter() {
                     if let Some(ref item2) = map2.get(key1) {
@@ -763,7 +763,7 @@ fn hash_map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                 break;
             }
         }
-        Ok(MalType::HashMap(map))
+        Ok(MalType::hashmap(map))
     } else {
         Err(MalError::WrongArguments(
             "Must pass an even number of arguments to hash-map".to_string(),
@@ -774,7 +774,7 @@ fn hash_map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn is_map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
         match args.remove(0) {
-            MalType::HashMap(_) => Ok(MalType::True),
+            MalType::HashMap(_, _) => Ok(MalType::True),
             _ => Ok(MalType::False),
         }
     } else {
@@ -787,7 +787,7 @@ fn is_map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn assoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() % 2 == 1 {
         let map = args.remove(0);
-        if let MalType::HashMap(map) = map {
+        if let MalType::HashMap(map, metadata) = map {
             let mut map = map.clone();
             let mut list_iter = args.iter();
             loop {
@@ -798,7 +798,7 @@ fn assoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                     break;
                 }
             }
-            Ok(MalType::HashMap(map))
+            Ok(MalType::HashMap(map, metadata))
         } else {
             Err(MalError::WrongArguments(
                 "First argument must be a hash-map".to_string(),
@@ -814,7 +814,7 @@ fn assoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn dissoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 1 {
         let map = args.remove(0);
-        if let MalType::HashMap(map) = map {
+        if let MalType::HashMap(map, metadata) = map {
             let mut map = map.clone();
             let mut list_iter = args.iter();
             loop {
@@ -826,7 +826,7 @@ fn dissoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                     break;
                 }
             }
-            Ok(MalType::HashMap(map))
+            Ok(MalType::HashMap(map, metadata))
         } else {
             Err(MalError::WrongArguments(
                 "First argument must be a hash-map".to_string(),
@@ -843,7 +843,7 @@ fn get(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 2 {
         let map = args.remove(0);
         match map {
-            MalType::HashMap(map) => {
+            MalType::HashMap(map, _) => {
                 let key = args.remove(0);
                 match map.get(&key) {
                     Some(val) => Ok(val.clone()),
@@ -865,7 +865,7 @@ fn get(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn contains(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 2 {
         let map = args.remove(0);
-        if let MalType::HashMap(map) = map {
+        if let MalType::HashMap(map, _) = map {
             let key = args.remove(0);
             if map.contains_key(&key) {
                 Ok(MalType::True)
@@ -887,7 +887,7 @@ fn contains(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn keys(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 1 {
         let map = args.remove(0);
-        if let MalType::HashMap(map) = map {
+        if let MalType::HashMap(map, _) = map {
             let list = map.keys().map(|k| k.clone()).collect();
             Ok(MalType::List(list))
         } else {
@@ -905,7 +905,7 @@ fn keys(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn vals(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 1 {
         let map = args.remove(0);
-        if let MalType::HashMap(map) = map {
+        if let MalType::HashMap(map, _) = map {
             let list = map.values().map(|k| k.clone()).collect();
             Ok(MalType::List(list))
         } else {
@@ -956,6 +956,7 @@ fn meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         let arg = args.remove(0);
         match arg {
             MalType::Lambda { metadata, .. } => Ok(*metadata),
+            MalType::HashMap(_, metadata) => Ok(*metadata),
             _ => Ok(MalType::Nil),
         }
     } else {
@@ -973,6 +974,9 @@ fn with_meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
             MalType::Lambda {
                 ref mut metadata, ..
             } => {
+                *metadata = Box::new(new_metadata.clone());
+            }
+            MalType::HashMap(_, ref mut metadata) => {
                 *metadata = Box::new(new_metadata.clone());
             }
             _ => {}

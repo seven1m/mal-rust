@@ -180,12 +180,12 @@ fn eval_ast(ast: MalType, repl_env: Env) -> MalResult {
                 .collect();
             Ok(MalType::Vector(results?))
         }
-        MalType::HashMap(map) => {
+        MalType::HashMap(map, metadata) => {
             let mut new_map = BTreeMap::new();
             for (key, val) in map {
                 new_map.insert(key, eval(val, repl_env.clone())?);
             }
-            Ok(MalType::HashMap(new_map))
+            Ok(MalType::HashMap(new_map, metadata))
         }
         _ => Ok(ast),
     }

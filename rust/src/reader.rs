@@ -171,7 +171,7 @@ fn read_hash_map(reader: &mut Reader) -> MalResult {
             break;
         }
     }
-    Ok(MalType::HashMap(map))
+    Ok(MalType::hashmap(map))
 }
 
 fn read_list_inner(reader: &mut Reader, close: &str) -> Result<Vec<MalType>, MalError> {
@@ -285,7 +285,7 @@ mod tests {
             MalType::String("bar".to_string()),
             MalType::Vector(vec![MalType::Number(2), MalType::Number(3)]),
         );
-        assert_eq!(ast, MalType::HashMap(map));
+        assert_eq!(ast, MalType::HashMap(map, Box::new(MalType::Nil)));
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
                     MalType::Number(2),
                     MalType::Number(3),
                 ]),
-                MalType::HashMap(map),
+                MalType::HashMap(map, Box::new(MalType::Nil)),
             ])
         );
     }
