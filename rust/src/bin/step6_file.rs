@@ -12,7 +12,7 @@ use std::env;
 use std::process;
 
 fn main() {
-    let mut readline = Readline::new();
+    let mut readline = Readline::new("user> ");
     let repl_env = top_repl_env();
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {
@@ -297,12 +297,11 @@ fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     match args {
         MalType::List(args) | MalType::Vector(args) => {
             let body = list.remove(0);
-            Ok(TailPosition::Return(MalType::Lambda {
-                env: repl_env.clone(),
-                args: args,
-                body: vec![body],
-                is_macro: false,
-            }))
+            Ok(TailPosition::Return(MalType::lambda(
+                repl_env.clone(),
+                args,
+                vec![body],
+            )))
         }
         _ => Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::collections::BTreeMap;
 
 fn main() {
-    let mut readline = Readline::new();
+    let mut readline = Readline::new("user> ");
     loop {
         match readline.get() {
             Some(line) => {

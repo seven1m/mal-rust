@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 extern crate mal_rust;
 
 use mal_rust::env::Env;
@@ -72,6 +74,7 @@ fn top_repl_env() -> Env {
             vec![]
         }),
     );
+    repl_env.set("*host-language*", MalType::String("Rust".to_string()));
     rep(
         "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))",
         repl_env.clone(),
@@ -79,11 +82,11 @@ fn top_repl_env() -> Env {
     rep(
         "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))",
         repl_env.clone()
-    ).expect("could not define macro cond");
+       ).expect("could not define macro cond");
     rep(
         "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))",
         repl_env.clone()
-    ).expect("could not define macro or");
+       ).expect("could not define macro or");
     repl_env
 }
 
@@ -583,14 +586,14 @@ mod tests {
     fn test_quoting() {
         let repl_env = top_repl_env();
         /*
-        let result = rep("(quasiquote (1 c 3))", repl_env.clone()).unwrap();
-        assert_eq!("(1 c 3)", result);
-        let result = rep("(quasiquote (1 2 (3 4)))", repl_env.clone()).unwrap();
-        assert_eq!("(1 2 (3 4))", result);
-        rep("(def! c (quote (1 \"b\" \"d\")))", repl_env.clone()).unwrap();
-        let result = rep("(quasiquote (1 (splice-unquote c) 3))", repl_env.clone()).unwrap();
-        assert_eq!("(1 1 \"b\" \"d\" 3)", result);
-        */
+           let result = rep("(quasiquote (1 c 3))", repl_env.clone()).unwrap();
+           assert_eq!("(1 c 3)", result);
+           let result = rep("(quasiquote (1 2 (3 4)))", repl_env.clone()).unwrap();
+           assert_eq!("(1 2 (3 4))", result);
+           rep("(def! c (quote (1 \"b\" \"d\")))", repl_env.clone()).unwrap();
+           let result = rep("(quasiquote (1 (splice-unquote c) 3))", repl_env.clone()).unwrap();
+           assert_eq!("(1 1 \"b\" \"d\" 3)", result);
+           */
         let result = rep("(apply symbol? (list (quote two)))", repl_env.clone()).unwrap();
         assert_eq!("true", result);
     }
@@ -618,5 +621,12 @@ mod tests {
             repl_env.clone(),
         ).unwrap();
         assert_eq!("true", result);
+    }
+
+    #[test]
+    fn test_metadata() {
+        let repl_env = top_repl_env();
+        let result = rep("(meta (with-meta (fn* (a) a) \"abc\"))", repl_env.clone()).unwrap();
+        assert_eq!("\"abc\"", result);
     }
 }

@@ -7,13 +7,11 @@ pub struct Readline {
 const HISTORY_FILE: &str = ".mal-history";
 
 impl Readline {
-    pub fn new() -> Readline {
+    pub fn new(prompt: &str) -> Readline {
         let reader = Interface::new("mal").unwrap();
-        reader.set_prompt("user> ");
+        reader.set_prompt(prompt);
         reader.load_history(HISTORY_FILE).unwrap_or(());
-        Readline {
-            reader: reader,
-        }
+        Readline { reader: reader }
     }
 
     pub fn get(&mut self) -> Option<String> {

@@ -30,8 +30,21 @@ pub enum MalType {
         args: Vec<MalType>,
         body: Vec<MalType>,
         is_macro: bool,
+        metadata: Box<MalType>,
     },
     Atom(Rc<RefCell<MalType>>),
+}
+
+impl MalType {
+    pub fn lambda(env: Env, args: Vec<MalType>, body: Vec<MalType>) -> MalType {
+        MalType::Lambda {
+            env,
+            args,
+            body,
+            is_macro: false,
+            metadata: Box::new(MalType::Nil),
+        }
+    }
 }
 
 impl cmp::PartialEq for MalType {

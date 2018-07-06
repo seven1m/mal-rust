@@ -10,7 +10,7 @@ use mal_rust::types::*;
 use std::collections::BTreeMap;
 
 fn main() {
-    let mut readline = Readline::new();
+    let mut readline = Readline::new("user> ");
     let mut repl_env = env::Env::new(None);
     repl_env.set("+", MalType::Function(Box::new(core::add), None));
     repl_env.set("-", MalType::Function(Box::new(core::subtract), None));

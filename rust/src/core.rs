@@ -3,6 +3,7 @@ use printer::pr_str;
 use reader::read_str;
 use env::Env;
 use util::*;
+use readline::Readline;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -66,6 +67,15 @@ lazy_static! {
         ns.insert("keys".to_string(), keys);
         ns.insert("vals".to_string(), vals);
         ns.insert("sequential?".to_string(), is_sequental);
+        ns.insert("readline".to_string(), readline);
+        ns.insert("meta".to_string(), meta);
+        ns.insert("with-meta".to_string(), with_meta);
+        ns.insert("string?".to_string(), is_string);
+        ns.insert("number?".to_string(), is_number);
+        ns.insert("fn?".to_string(), is_fn);
+        ns.insert("macro?".to_string(), is_macro);
+        ns.insert("conj".to_string(), conj);
+        ns.insert("seq".to_string(), seq);
         ns
     };
 }
@@ -917,6 +927,175 @@ fn is_sequental(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     } else {
         Err(MalError::WrongArguments(
             "Must pass at least one argument to sequential?".to_string(),
+        ))
+    }
+}
+
+fn readline(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    let prompt = if args.len() >= 1 {
+        let arg = args.remove(0);
+        if let MalType::String(string) = arg {
+            string
+        } else {
+            return Err(MalError::WrongArguments(
+                "Must pass a string to readline".to_string(),
+            ));
+        }
+    } else {
+        ">".to_string()
+    };
+    let mut readline = Readline::new(&prompt);
+    match readline.get() {
+        Some(line) => Ok(MalType::String(line)),
+        None => Ok(MalType::Nil),
+    }
+}
+
+fn meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 1 {
+        let arg = args.remove(0);
+        match arg {
+            MalType::Lambda { metadata, .. } => Ok(*metadata),
+            _ => Ok(MalType::Nil),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to meta".to_string(),
+        ))
+    }
+}
+
+fn with_meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 2 {
+        let mut func = args.remove(0).clone();
+        let new_metadata = args.remove(0);
+        match func {
+            MalType::Lambda {
+                ref mut metadata, ..
+            } => {
+                *metadata = Box::new(new_metadata.clone());
+            }
+            _ => {}
+        };
+        Ok(func)
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least two arguments to with-meta".to_string(),
+        ))
+    }
+}
+
+fn is_string(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        match args.remove(0) {
+            MalType::String(_) => Ok(MalType::True),
+            _ => Ok(MalType::False),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to string?".to_string(),
+        ))
+    }
+}
+
+fn is_number(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        match args.remove(0) {
+            MalType::Number(_) => Ok(MalType::True),
+            _ => Ok(MalType::False),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to number?".to_string(),
+        ))
+    }
+}
+
+fn is_fn(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        match args.remove(0) {
+            MalType::Function(_, _) => Ok(MalType::True),
+            MalType::Lambda { is_macro, .. } => Ok(mal_bool(!is_macro)),
+            _ => Ok(MalType::False),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to fn?".to_string(),
+        ))
+    }
+}
+
+fn is_macro(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() > 0 {
+        match args.remove(0) {
+            MalType::Lambda { is_macro, .. } => Ok(mal_bool(is_macro)),
+            _ => Ok(MalType::False),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to fn?".to_string(),
+        ))
+    }
+}
+
+fn conj(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 2 {
+        let list = args.remove(0);
+        match list {
+            MalType::List(mut vec) => {
+                for new_item in args {
+                    vec.insert(0, new_item.clone());
+                }
+                Ok(MalType::List(vec))
+            }
+            MalType::Vector(mut vec) => {
+                for new_item in args {
+                    vec.push(new_item.clone());
+                }
+                Ok(MalType::Vector(vec))
+            }
+            _ => Err(MalError::WrongArguments(
+                "Must pass a list or vector to conj".to_string(),
+            )),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least two arguments to conj".to_string(),
+        ))
+    }
+}
+
+fn seq(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    if args.len() >= 1 {
+        let arg = args.remove(0);
+        match arg {
+            MalType::String(string) => {
+                if string.len() == 0 {
+                    Ok(MalType::Nil)
+                } else {
+                    Ok(MalType::List(
+                        string
+                            .chars()
+                            .map(|c| MalType::String(c.to_string()))
+                            .collect(),
+                    ))
+                }
+            }
+            MalType::List(vec) | MalType::Vector(vec) => {
+                if vec.len() == 0 {
+                    Ok(MalType::Nil)
+                } else {
+                    Ok(MalType::List(vec))
+                }
+            }
+            MalType::Nil => Ok(MalType::Nil),
+            _ => Err(MalError::WrongArguments(
+                "Must pass a string, list, or vector to seq".to_string(),
+            )),
+        }
+    } else {
+        Err(MalError::WrongArguments(
+            "Must pass at least one argument to seq".to_string(),
         ))
     }
 }

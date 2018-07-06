@@ -6,7 +6,7 @@ use mal_rust::printer::pr_str;
 use mal_rust::types::*;
 
 fn main() {
-    let mut readline = Readline::new();
+    let mut readline = Readline::new("user> ");
     loop {
         match readline.get() {
             Some(line) => {

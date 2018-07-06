@@ -10,7 +10,7 @@ use mal_rust::core::NS;
 use std::collections::BTreeMap;
 
 fn main() {
-    let mut readline = Readline::new();
+    let mut readline = Readline::new("user> ");
     let mut repl_env = top_repl_env();
     loop {
         match readline.get() {
@@ -235,12 +235,7 @@ fn special_fn(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     match args {
         MalType::List(args) | MalType::Vector(args) => {
             let body = list.remove(0);
-            Ok(MalType::Lambda {
-                env: repl_env.clone(),
-                args: args,
-                body: vec![body],
-                is_macro: false,
-            })
+            Ok(MalType::lambda(repl_env.clone(), args, vec![body]))
         }
         _ => Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",

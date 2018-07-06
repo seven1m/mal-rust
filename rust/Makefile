@@ -10,6 +10,7 @@ target/release/step6_file: build
 target/release/step7_quote: build
 target/release/step8_macros: build
 target/release/step9_try: build
+target/release/stepA_mal: build
 
 build:
 	cargo build --release

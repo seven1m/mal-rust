@@ -3,7 +3,7 @@ extern crate mal_rust;
 use mal_rust::readline::Readline;
 
 fn main() {
-    let mut readline = Readline::new();
+    let mut readline = Readline::new("user> ");
     loop {
         match readline.get() {
             Some(line) => {
