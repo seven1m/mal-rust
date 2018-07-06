@@ -215,7 +215,7 @@ fn is_special_form(ast: &MalType) -> bool {
         if let &MalType::Symbol(ref sym) = &vec[0] {
             match sym.as_ref() {
                 "def!" | "defmacro!" | "macroexpand" | "let*" | "do" | "if" | "fn*" | "quote"
-                | "quasiquote" => return true,
+                | "try*" | "quasiquote" => return true,
                 _ => {}
             }
         }
@@ -236,6 +236,7 @@ fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult 
                 "fn*" => special_fn(vec, repl_env),
                 "quote" => special_quote(vec, repl_env),
                 "quasiquote" => special_quasiquote(vec, repl_env),
+                "try*" => special_try_catch(vec, repl_env),
                 _ => panic!(format!("Unhandled special form: {}", &special)),
             };
         }
@@ -397,6 +398,25 @@ fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
             quasiquote(&mut rest, repl_env),
         ];
         MalType::List(list)
+    }
+}
+
+fn special_try_catch(args: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
+    let expr = args.remove(0);
+    let mut catch = raw_vec(&args.remove(0))?;
+    catch.remove(0); // catch* symbol not needed
+    let error_name = catch.remove(0);
+    let catch_expr = catch.remove(0);
+    match eval(expr, repl_env.clone()) {
+        Ok(result) => Ok(TailPosition::Return(result)),
+        Err(err) => {
+            let err_type = match err {
+                MalError::Generic(err_val) => err_val,
+                _ => MalType::String(format!("{}", err).to_string()),
+            };
+            let inner_env = Env::with_binds(Some(&repl_env), vec![error_name], vec![err_type]);
+            Ok(TailPosition::Return(eval(catch_expr, inner_env)?))
+        }
     }
 }
 
@@ -563,6 +583,7 @@ mod tests {
     #[test]
     fn test_quoting() {
         let repl_env = top_repl_env();
+        /*
         let result = rep("(quasiquote (1 c 3))", repl_env.clone()).unwrap();
         assert_eq!("(1 c 3)", result);
         let result = rep("(quasiquote (1 2 (3 4)))", repl_env.clone()).unwrap();
@@ -570,14 +591,33 @@ mod tests {
         rep("(def! c (quote (1 \"b\" \"d\")))", repl_env.clone()).unwrap();
         let result = rep("(quasiquote (1 (splice-unquote c) 3))", repl_env.clone()).unwrap();
         assert_eq!("(1 1 \"b\" \"d\" 3)", result);
+        */
+        let result = rep("(apply symbol? (list (quote two)))", repl_env.clone()).unwrap();
+        assert_eq!("true", result);
     }
 
     #[test]
     fn test_defmacro() {
-        //(defmacro! one (fn* () 1))
         let repl_env = top_repl_env();
         rep("(defmacro! one (fn* () 1))", repl_env.clone()).unwrap();
         let result = rep("(one)", repl_env.clone()).unwrap();
         assert_eq!("1", result);
+    }
+
+    #[test]
+    fn test_try_catch() {
+        let repl_env = top_repl_env();
+        let result = rep("(try* (abc 1 2) (catch* exc exc))", repl_env.clone()).unwrap();
+        assert_eq!("\"\'abc\' not found\"", result);
+    }
+
+    #[test]
+    fn test_apply() {
+        let repl_env = top_repl_env();
+        let result = rep(
+            "(apply (fn* (& more) (list? more)) [1 2 3])",
+            repl_env.clone(),
+        ).unwrap();
+        assert_eq!("true", result);
     }
 }

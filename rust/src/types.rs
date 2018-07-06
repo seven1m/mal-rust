@@ -76,6 +76,7 @@ pub type MalResult = Result<MalType, MalError>;
 
 #[derive(Debug, PartialEq)]
 pub enum MalError {
+    Generic(MalType),
     Parse(String),
     SymbolUndefined(String),
     WrongArguments(String),
@@ -90,8 +91,9 @@ pub enum MalError {
 impl fmt::Display for MalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            MalError::Generic(ref val) => write!(f, "{:?}", val),
             MalError::Parse(ref msg) => write!(f, "Parse error: {}", msg),
-            MalError::SymbolUndefined(ref sym) => write!(f, "Symbol undefined: {}", sym),
+            MalError::SymbolUndefined(ref sym) => write!(f, "'{}' not found", sym),
             MalError::WrongArguments(ref msg) => write!(f, "Wrong arguments: {}", msg),
             MalError::NotAFunction(ref val) => write!(f, "Not a function: {:?}", val),
             MalError::IO(ref err) => write!(f, "IO Error: {}", err),
@@ -109,6 +111,7 @@ impl fmt::Display for MalError {
 impl Error for MalError {
     fn description(&self) -> &str {
         match *self {
+            MalError::Generic(_) => "Error",
             MalError::Parse(_) => "Parse error",
             MalError::SymbolUndefined(_) => "Symbol undefined",
             MalError::WrongArguments(_) => "Wrong arguments",
@@ -132,6 +135,7 @@ impl From<io::Error> for MalError {
     }
 }
 
+#[derive(Debug)]
 pub enum TailPosition {
     Call(MalType, Option<Env>),
     Return(MalType),
