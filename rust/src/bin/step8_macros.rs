@@ -171,11 +171,11 @@ fn eval_ast(ast: MalType, repl_env: Env) -> MalResult {
                 .collect();
             Ok(MalType::List(results?))
         }
-        MalType::Vector(vec) => {
+        MalType::Vector(vec, _) => {
             let results: Result<Vec<MalType>, MalError> = vec.into_iter()
                 .map(|item| eval(item, repl_env.clone()))
                 .collect();
-            Ok(MalType::Vector(results?))
+            Ok(MalType::vector(results?))
         }
         MalType::HashMap(map, metadata) => {
             let mut new_map = BTreeMap::new();
@@ -194,7 +194,7 @@ fn print(ast: MalType) -> String {
 
 fn list_len(list: &MalType) -> usize {
     match *list {
-        MalType::List(ref vec) | MalType::Vector(ref vec) => vec.len(),
+        MalType::List(ref vec) | MalType::Vector(ref vec, _) => vec.len(),
         _ => panic!("Expected a list but got: {:?}", list),
     }
 }
@@ -292,7 +292,7 @@ fn special_let(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let inner_repl_env = Env::new(Some(&repl_env));
     let bindings = vec.remove(0);
     match bindings {
-        MalType::Vector(mut bindings) | MalType::List(mut bindings) => {
+        MalType::Vector(mut bindings, _) | MalType::List(mut bindings) => {
             if bindings.len() % 2 != 0 {
                 return Err(MalError::Parse(
                     "Odd number of let* binding values!".to_string(),
@@ -344,7 +344,7 @@ fn special_if(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
 fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let args = list.remove(0);
     match args {
-        MalType::List(args) | MalType::Vector(args) => {
+        MalType::List(args) | MalType::Vector(args, _) => {
             let body = list.remove(0);
             Ok(TailPosition::Return(MalType::lambda(
                 repl_env.clone(),
@@ -408,21 +408,23 @@ fn is_symbol_named(val: &MalType, name: &str) -> bool {
 
 fn is_pair(arg: &MalType) -> bool {
     match *arg {
-        MalType::List(_) | MalType::Vector(_) => list_len(arg) > 0,
+        MalType::List(_) | MalType::Vector(_, _) => list_len(arg) > 0,
         _ => false,
     }
 }
 
 fn car(arg: &MalType) -> MalType {
     match *arg {
-        MalType::List(ref list) | MalType::Vector(ref list) => list[0].clone(),
+        MalType::List(ref list) | MalType::Vector(ref list, _) => list[0].clone(),
         _ => panic!("Expected a list to car but got: {:?}", arg),
     }
 }
 
 fn cdr(arg: &MalType) -> MalType {
     match *arg {
-        MalType::List(ref list) | MalType::Vector(ref list) => MalType::List(list[1..].to_owned()),
+        MalType::List(ref list) | MalType::Vector(ref list, _) => {
+            MalType::List(list[1..].to_owned())
+        }
         _ => panic!("Expected a list to cdr but got: {:?}", arg),
     }
 }

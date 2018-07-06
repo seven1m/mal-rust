@@ -98,10 +98,10 @@ fn eval_ast(ast: MalType, repl_env: &Env) -> MalResult {
                 vec.into_iter().map(|item| eval(item, repl_env)).collect();
             Ok(MalType::List(results?))
         }
-        MalType::Vector(vec) => {
+        MalType::Vector(vec, _) => {
             let results: Result<Vec<MalType>, MalError> =
                 vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::Vector(results?))
+            Ok(MalType::vector(results?))
         }
         MalType::HashMap(map, metadata) => {
             let mut new_map = BTreeMap::new();
@@ -179,7 +179,7 @@ fn special_let(vec: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let mut inner_repl_env = Env::new(Some(&repl_env));
     let bindings = vec.remove(0);
     match bindings {
-        MalType::Vector(mut bindings) | MalType::List(mut bindings) => {
+        MalType::Vector(mut bindings, _) | MalType::List(mut bindings) => {
             if bindings.len() % 2 != 0 {
                 return Err(MalError::Parse(
                     "Odd number of let* binding values!".to_string(),
@@ -233,7 +233,7 @@ fn special_if(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
 fn special_fn(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let args = list.remove(0);
     match args {
-        MalType::List(args) | MalType::Vector(args) => {
+        MalType::List(args) | MalType::Vector(args, _) => {
             let body = list.remove(0);
             Ok(MalType::lambda(repl_env.clone(), args, vec![body]))
         }

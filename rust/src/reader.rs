@@ -152,7 +152,7 @@ fn read_list(reader: &mut Reader) -> MalResult {
 fn read_vector(reader: &mut Reader) -> MalResult {
     consume_and_assert_eq!(reader, "[");
     let list = read_list_inner(reader, "]")?;
-    Ok(MalType::Vector(list))
+    Ok(MalType::vector(list))
 }
 
 fn read_hash_map(reader: &mut Reader) -> MalResult {
@@ -267,7 +267,7 @@ mod tests {
         let ast = read_str(code).unwrap();
         assert_eq!(
             ast,
-            MalType::Vector(vec![
+            MalType::vector(vec![
                 MalType::Number(1),
                 MalType::Keyword("foo".to_string()),
                 MalType::Nil,
@@ -283,7 +283,7 @@ mod tests {
         map.insert(MalType::Keyword("foo".to_string()), MalType::Number(1));
         map.insert(
             MalType::String("bar".to_string()),
-            MalType::Vector(vec![MalType::Number(2), MalType::Number(3)]),
+            MalType::vector(vec![MalType::Number(2), MalType::Number(3)]),
         );
         assert_eq!(ast, MalType::HashMap(map, Box::new(MalType::Nil)));
     }
@@ -336,7 +336,7 @@ mod tests {
             ast,
             MalType::List(vec![
                 MalType::Symbol("with-meta".to_string()),
-                MalType::Vector(vec![
+                MalType::vector(vec![
                     MalType::Number(1),
                     MalType::Number(2),
                     MalType::Number(3),
@@ -353,7 +353,7 @@ mod tests {
         assert_eq!(err, MalError::BlankLine);
         let code = "[1] ; comment";
         let ast = read_str(code).unwrap();
-        assert_eq!(ast, MalType::Vector(vec![MalType::Number(1)]));
+        assert_eq!(ast, MalType::vector(vec![MalType::Number(1)]));
         let code = "\"str\" ; comment";
         let ast = read_str(code).unwrap();
         assert_eq!(ast, MalType::String("str".to_string()));

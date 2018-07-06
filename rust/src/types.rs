@@ -19,7 +19,7 @@ pub enum MalType {
     String(String),
     Symbol(String),
     List(Vec<MalType>),
-    Vector(Vec<MalType>),
+    Vector(Vec<MalType>, Box<MalType>),
     HashMap(BTreeMap<MalType, MalType>, Box<MalType>),
     Function(
         Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
@@ -49,6 +49,10 @@ impl MalType {
     pub fn hashmap(map: BTreeMap<MalType, MalType>) -> MalType {
         MalType::HashMap(map, Box::new(MalType::Nil))
     }
+
+    pub fn vector(vec: Vec<MalType>) -> MalType {
+        MalType::Vector(vec, Box::new(MalType::Nil))
+    }
 }
 
 impl cmp::PartialEq for MalType {
@@ -62,7 +66,7 @@ impl cmp::PartialEq for MalType {
             (&MalType::String(ref a), &MalType::String(ref b)) => a == b,
             (&MalType::Symbol(ref a), &MalType::Symbol(ref b)) => a == b,
             (&MalType::List(ref a), &MalType::List(ref b)) => a == b,
-            (&MalType::Vector(ref a), &MalType::Vector(ref b)) => a == b,
+            (&MalType::Vector(ref a, _), &MalType::Vector(ref b, _)) => a == b,
             (&MalType::HashMap(ref a, _), &MalType::HashMap(ref b, _)) => a == b,
             _ => false,
         }

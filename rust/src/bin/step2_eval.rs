@@ -104,10 +104,10 @@ fn eval_ast(ast: MalType, repl_env: &ReplEnv) -> MalResult {
                 vec.into_iter().map(|item| eval(item, repl_env)).collect();
             Ok(MalType::List(results?))
         }
-        MalType::Vector(vec) => {
+        MalType::Vector(vec, _) => {
             let results: Result<Vec<MalType>, MalError> =
                 vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::Vector(results?))
+            Ok(MalType::vector(results?))
         }
         MalType::HashMap(map, metadata) => {
             let mut new_map = BTreeMap::new();
