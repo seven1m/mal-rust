@@ -24,7 +24,6 @@ fn main() {
             repl_env.clone(),
         );
         match result {
-            Err(MalError::BlankLine) => {}
             Err(err) => {
                 println!("{}", err);
                 process::exit(1);
