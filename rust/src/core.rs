@@ -10,6 +10,8 @@ use std::io::prelude::*;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 
+use time::get_time;
+
 lazy_static! {
     pub static ref NS: HashMap<String, fn(&mut Vec<MalType>, Option<Env>) -> MalResult> = {
         let mut ns: HashMap<String, fn(&mut Vec<MalType>, Option<Env>) -> MalResult>
@@ -75,6 +77,7 @@ lazy_static! {
         ns.insert("conj".to_string(), conj);
         ns.insert("seq".to_string(), seq);
         ns.insert("gensym".to_string(), gensym);
+        ns.insert("time-ms".to_string(), time_ms);
         ns
     };
 }
@@ -1086,6 +1089,12 @@ fn gensym(_args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
     auto_incr.swap(add_fn, &mut vec![MalType::Number(1)])?;
     let name = "gensym-".to_string() + &number.to_string();
     Ok(MalType::Symbol(name))
+}
+
+fn time_ms(_args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    let t = get_time();
+    let ms = (t.sec * 1_000) as i64 + (t.nsec / 1_000_000) as i64;
+    Ok(MalType::Number(ms))
 }
 
 fn eval(mut args: Vec<MalType>, env: &Env) -> MalResult {

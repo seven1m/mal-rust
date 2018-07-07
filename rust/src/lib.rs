@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 extern crate linefeed;
 extern crate regex;
+extern crate time;
 
 pub mod core;
 pub mod env;
