@@ -21,10 +21,11 @@ pub enum MalType {
     List(Vec<MalType>, Box<MalType>),
     Vector(Vec<MalType>, Box<MalType>),
     HashMap(BTreeMap<MalType, MalType>, Box<MalType>),
-    Function(
-        Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
-        Option<Env>,
-    ),
+    Function {
+        func: Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
+        env: Option<Env>,
+        metadata: Box<MalType>,
+    },
     Lambda {
         env: Env,
         args: Vec<MalType>,
@@ -36,6 +37,17 @@ pub enum MalType {
 }
 
 impl MalType {
+    pub fn function(
+        func: Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
+        env: Option<Env>,
+    ) -> MalType {
+        MalType::Function {
+            env,
+            func,
+            metadata: Box::new(MalType::Nil),
+        }
+    }
+
     pub fn lambda(env: Env, args: Vec<MalType>, body: Vec<MalType>) -> MalType {
         MalType::Lambda {
             env,

@@ -952,8 +952,9 @@ fn meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() >= 1 {
         let arg = args.remove(0);
         match arg {
-            MalType::Lambda { metadata, .. } => Ok(*metadata),
-            MalType::List(_, metadata)
+            MalType::Lambda { metadata, .. }
+            | MalType::Function { metadata, .. }
+            | MalType::List(_, metadata)
             | MalType::Vector(_, metadata)
             | MalType::HashMap(_, metadata) => Ok(*metadata),
             _ => Ok(MalType::Nil),
@@ -972,10 +973,11 @@ fn with_meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
         match func {
             MalType::Lambda {
                 ref mut metadata, ..
-            } => {
-                *metadata = Box::new(new_metadata.clone());
             }
-            MalType::List(_, ref mut metadata)
+            | MalType::Function {
+                ref mut metadata, ..
+            }
+            | MalType::List(_, ref mut metadata)
             | MalType::Vector(_, ref mut metadata)
             | MalType::HashMap(_, ref mut metadata) => {
                 *metadata = Box::new(new_metadata.clone());
@@ -1019,7 +1021,7 @@ fn is_number(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn is_fn(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
         match args.remove(0) {
-            MalType::Function(_, _) => Ok(MalType::True),
+            MalType::Function { .. } => Ok(MalType::True),
             MalType::Lambda { is_macro, .. } => Ok(mal_bool(!is_macro)),
             _ => Ok(MalType::False),
         }
@@ -1106,8 +1108,8 @@ fn seq(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn eval(mut args: Vec<MalType>, env: &Env) -> MalResult {
-    if let Ok(MalType::Function(eval_fn, _)) = env.get("eval") {
-        eval_fn(&mut args, Some(env.clone()))
+    if let Ok(MalType::Function { func, .. }) = env.get("eval") {
+        func(&mut args, Some(env.clone()))
     } else {
         panic!("eval not a function!");
     }
@@ -1115,7 +1117,7 @@ fn eval(mut args: Vec<MalType>, env: &Env) -> MalResult {
 
 fn eval_func(func: MalType, mut args: &mut Vec<MalType>) -> MalResult {
     match func {
-        MalType::Function(func, env) => func(&mut args, env),
+        MalType::Function { func, env, .. } => func(&mut args, env),
         MalType::Lambda {
             env,
             args: binds,

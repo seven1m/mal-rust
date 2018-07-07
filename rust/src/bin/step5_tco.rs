@@ -33,7 +33,7 @@ fn main() {
 fn top_repl_env() -> Env {
     let repl_env = Env::new(None);
     for (name, func) in NS.iter() {
-        repl_env.set(name, MalType::Function(Box::new(*func), None));
+        repl_env.set(name, MalType::function(Box::new(*func), None));
     }
     repl_env
 }
@@ -82,7 +82,9 @@ fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
         if vec.len() > 0 {
             let first = vec.remove(0);
             match first {
-                MalType::Function(func, _) => func(&mut vec, None).map(|r| TailPosition::Return(r)),
+                MalType::Function { func, .. } => {
+                    func(&mut vec, None).map(|r| TailPosition::Return(r))
+                }
                 MalType::Lambda {
                     env, args, body, ..
                 } => call_lambda(env, args, body, vec),

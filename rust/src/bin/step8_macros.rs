@@ -53,12 +53,12 @@ fn top_repl_env() -> Env {
     for (name, func) in NS.iter() {
         repl_env.set(
             name,
-            MalType::Function(Box::new(*func), Some(repl_env.clone())),
+            MalType::function(Box::new(*func), Some(repl_env.clone())),
         );
     }
     repl_env.set(
         "eval",
-        MalType::Function(Box::new(eval_fn), Some(repl_env.clone())),
+        MalType::function(Box::new(eval_fn), Some(repl_env.clone())),
     );
     let argv: Vec<_> = env::args().collect();
     repl_env.set(
@@ -140,7 +140,7 @@ fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
         if vec.len() > 0 {
             let first = vec.remove(0);
             match first {
-                MalType::Function(func, env) => {
+                MalType::Function { func, env, .. } => {
                     func(&mut vec, env).map(|r| TailPosition::Return(r))
                 }
                 MalType::Lambda {
