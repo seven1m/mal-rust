@@ -8,8 +8,6 @@ use readline::Readline;
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 lazy_static! {
@@ -76,6 +74,7 @@ lazy_static! {
         ns.insert("macro?".to_string(), is_macro);
         ns.insert("conj".to_string(), conj);
         ns.insert("seq".to_string(), seq);
+        ns.insert("gensym".to_string(), gensym);
         ns
     };
 }
@@ -410,7 +409,7 @@ fn slurp(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 
 fn atom(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 0 {
-        Ok(MalType::Atom(Rc::new(RefCell::new(args.remove(0)))))
+        Ok(MalType::atom(args.remove(0)))
     } else {
         Err(MalError::WrongArguments(
             "Must pass at least one argument to atom".to_string(),
@@ -467,45 +466,11 @@ fn reset(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     }
 }
 
-fn swap(mut args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
-    let top_env = env.expect("Expected Env passed to swap fn");
+fn swap(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     if args.len() > 1 {
         let mut atom = args.remove(0);
         let func = args.remove(0);
-        if let MalType::Atom(ref mut val) = atom {
-            args.insert(0, val.borrow().to_owned());
-            if let Ok(MalType::Function(eval_fn, _)) = top_env.get("eval") {
-                match func {
-                    MalType::Lambda {
-                        env,
-                        args: binds,
-                        mut body,
-                        ..
-                    } => {
-                        let env = Env::with_binds(Some(&env), binds, args.to_owned());
-                        let expr = body.remove(0);
-                        let mut eval_args = vec![expr];
-                        let new_val = eval_fn(&mut eval_args, Some(env))?;
-                        val.replace(new_val.clone());
-                        Ok(new_val)
-                    }
-                    MalType::Function(func, env) => {
-                        let new_val = func(&mut args, env)?;
-                        val.replace(new_val.clone());
-                        Ok(new_val)
-                    }
-                    _ => Err(MalError::WrongArguments(
-                        "Must pass a function to reset".to_string(),
-                    )),
-                }
-            } else {
-                panic!("eval not a function!");
-            }
-        } else {
-            Err(MalError::WrongArguments(
-                "Must pass an atom to reset".to_string(),
-            ))
-        }
+        atom.swap(func, args)
     } else {
         Err(MalError::WrongArguments(
             "Must pass at least two arguments to swap!".to_string(),
@@ -1107,6 +1072,22 @@ fn seq(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     }
 }
 
+fn gensym(_args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
+    let env = env.expect("env must be passed to gensym");
+    let mut auto_incr = env.get("*gensym-auto-incr*").unwrap();
+    let number = match auto_incr {
+        MalType::Atom(ref val) => match *val.borrow_mut() {
+            MalType::Number(mut num) => num,
+            _ => panic!("not possible"),
+        },
+        _ => panic!("not possible"),
+    };
+    let add_fn = MalType::function(Box::new(add), Some(env));
+    auto_incr.swap(add_fn, &mut vec![MalType::Number(1)])?;
+    let name = "gensym-".to_string() + &number.to_string();
+    Ok(MalType::Symbol(name))
+}
+
 fn eval(mut args: Vec<MalType>, env: &Env) -> MalResult {
     if let Ok(MalType::Function { func, .. }) = env.get("eval") {
         func(&mut args, Some(env.clone()))
@@ -1115,7 +1096,7 @@ fn eval(mut args: Vec<MalType>, env: &Env) -> MalResult {
     }
 }
 
-fn eval_func(func: MalType, mut args: &mut Vec<MalType>) -> MalResult {
+pub fn eval_func(func: MalType, mut args: &mut Vec<MalType>) -> MalResult {
     match func {
         MalType::Function { func, env, .. } => func(&mut args, env),
         MalType::Lambda {

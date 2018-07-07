@@ -8,6 +8,7 @@ use std::cell::RefCell;
 
 use printer;
 use env::Env;
+use core::eval_func;
 
 #[derive(Clone)]
 pub enum MalType {
@@ -68,6 +69,23 @@ impl MalType {
 
     pub fn hashmap(map: BTreeMap<MalType, MalType>) -> MalType {
         MalType::HashMap(map, Box::new(MalType::Nil))
+    }
+
+    pub fn atom(val: MalType) -> MalType {
+        MalType::Atom(Rc::new(RefCell::new(val)))
+    }
+
+    pub fn swap(&mut self, func: MalType, args: &mut Vec<MalType>) -> MalResult {
+        if let MalType::Atom(ref mut val) = *self {
+            args.insert(0, val.borrow().to_owned());
+            let new_val = eval_func(func, args)?;
+            val.replace(new_val.clone());
+            Ok(new_val)
+        } else {
+            Err(MalError::WrongArguments(
+                "Must pass an atom to reset".to_string(),
+            ))
+        }
     }
 }
 
