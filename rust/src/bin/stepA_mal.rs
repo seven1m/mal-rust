@@ -85,7 +85,7 @@ fn top_repl_env() -> Env {
         repl_env.clone()
        ).expect("could not define macro cond");
     rep(
-        "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))",
+        "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))",
         repl_env.clone()
        ).expect("could not define macro or");
     repl_env
