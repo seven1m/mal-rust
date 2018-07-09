@@ -31,6 +31,10 @@ fn main() {
             _ => process::exit(0),
         }
     }
+    rep(
+        "(println (str \"Mal [\" *host-language* \"]\"))",
+        repl_env.clone(),
+    ).expect("Unable to print host language header");
     loop {
         match readline.get() {
             Some(line) => {
