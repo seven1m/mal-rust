@@ -326,10 +326,14 @@ fn special_let(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
 }
 
 fn special_do(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
-    while list.len() >= 2 {
-        eval(list.remove(0), repl_env.clone())?;
+    if list.len() > 0 {
+        while list.len() >= 2 {
+            eval(list.remove(0), repl_env.clone())?;
+        }
+        Ok(TailPosition::Call(list.remove(0), Some(repl_env)))
+    } else {
+        Ok(TailPosition::Return(MalType::Nil))
     }
-    Ok(TailPosition::Call(list.remove(0), Some(repl_env)))
 }
 
 fn special_if(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
