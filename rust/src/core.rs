@@ -35,7 +35,6 @@ lazy_static! {
         ns.insert("<=".to_string(), is_lte);
         ns.insert(">".to_string(), is_gt);
         ns.insert(">=".to_string(), is_gte);
-        ns.insert("not".to_string(), not);
         ns.insert("read-string".to_string(), read_string);
         ns.insert("slurp".to_string(), slurp);
         ns.insert("atom".to_string(), atom);
@@ -359,20 +358,6 @@ fn is_gt(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 
 fn is_gte(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     num_compare(args, &|n1, n2| n1 >= n2)
-}
-
-fn not(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let arg = args.remove(0);
-        Ok(match &arg {
-            &MalType::False => MalType::True,
-            _ => MalType::False,
-        })
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to not".to_string(),
-        ))
-    }
 }
 
 fn read_string(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {

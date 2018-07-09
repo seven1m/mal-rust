@@ -35,6 +35,10 @@ fn top_repl_env() -> Env {
     for (name, func) in NS.iter() {
         repl_env.set(name, MalType::function(Box::new(*func), None));
     }
+    rep(
+        "(def! not (fn* (a) (if a false true)))".to_string(),
+        &repl_env,
+    ).expect("could not define not");
     repl_env
 }
 

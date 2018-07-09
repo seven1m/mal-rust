@@ -70,6 +70,7 @@ fn top_repl_env() -> Env {
             vec![]
         }),
     );
+    rep("(def! not (fn* (a) (if a false true)))", repl_env.clone()).expect("could not define not");
     rep(
         "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))",
         repl_env.clone(),
