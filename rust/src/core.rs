@@ -65,7 +65,7 @@ lazy_static! {
         ns.insert("contains?".to_string(), contains);
         ns.insert("keys".to_string(), keys);
         ns.insert("vals".to_string(), vals);
-        ns.insert("sequential?".to_string(), is_sequental);
+        ns.insert("sequential?".to_string(), is_sequential);
         ns.insert("readline".to_string(), readline);
         ns.insert("meta".to_string(), meta);
         ns.insert("with-meta".to_string(), with_meta);
@@ -81,69 +81,63 @@ lazy_static! {
     };
 }
 
-pub fn add(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let mut iter = MalNumberIter { items: args };
-        let mut answer = iter.next().unwrap()?;
-        for num in iter {
-            answer += num?;
-        }
-        Ok(MalType::Number(answer))
+fn assert_arg_count_gte(args: &Vec<MalType>, expected: usize, name: &str) -> Result<(), MalError> {
+    let actual = args.len();
+    if actual >= expected {
+        Ok(())
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one number".to_string(),
+            format!(
+                "Must pass at least {} argument(s) to {} but only got {}",
+                expected, name, actual
+            ).to_string(),
         ))
     }
+}
+
+pub fn add(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    assert_arg_count_gte(args, 1, "+")?;
+    let mut iter = MalNumberIter { items: args };
+    let mut answer = iter.next().unwrap()?;
+    for num in iter {
+        answer += num?;
+    }
+    Ok(MalType::Number(answer))
 }
 
 pub fn subtract(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let mut iter = MalNumberIter { items: args };
-        let mut answer = iter.next().unwrap()?;
-        for num in iter {
-            answer -= num?;
-        }
-        Ok(MalType::Number(answer))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one number".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "-")?;
+    let mut iter = MalNumberIter { items: args };
+    let mut answer = iter.next().unwrap()?;
+    for num in iter {
+        answer -= num?;
     }
+    Ok(MalType::Number(answer))
 }
 
 pub fn multiply(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let mut iter = MalNumberIter { items: args };
-        let mut answer = iter.next().unwrap()?;
-        for num in iter {
-            answer *= num?;
-        }
-        Ok(MalType::Number(answer))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one number".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "*")?;
+    let mut iter = MalNumberIter { items: args };
+    let mut answer = iter.next().unwrap()?;
+    for num in iter {
+        answer *= num?;
     }
+    Ok(MalType::Number(answer))
 }
 
 pub fn divide(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let mut iter = MalNumberIter { items: args };
-        let mut answer = iter.next().unwrap()?;
-        for num in iter {
-            let num = num?;
-            if num == 0 {
-                return Err(MalError::DivideByZero);
-            } else {
-                answer /= num;
-            }
+    assert_arg_count_gte(args, 1, "/")?;
+    let mut iter = MalNumberIter { items: args };
+    let mut answer = iter.next().unwrap()?;
+    for num in iter {
+        let num = num?;
+        if num == 0 {
+            return Err(MalError::DivideByZero);
+        } else {
+            answer /= num;
         }
-        Ok(MalType::Number(answer))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one number".to_string(),
-        ))
     }
+    Ok(MalType::Number(answer))
 }
 
 fn _println(args: &mut Vec<MalType>, print_readably: bool, joiner: &str) -> MalResult {
@@ -187,17 +181,12 @@ fn mal_bool(b: bool) -> MalType {
 }
 
 fn is_list(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let arg = args.remove(0);
-        if let MalType::List(_, _) = arg {
-            Ok(MalType::True)
-        } else {
-            Ok(MalType::False)
-        }
+    assert_arg_count_gte(args, 1, "list?")?;
+    let arg = args.remove(0);
+    if let MalType::List(_, _) = arg {
+        Ok(MalType::True)
     } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to list?".to_string(),
-        ))
+        Ok(MalType::False)
     }
 }
 
@@ -206,57 +195,35 @@ fn vector(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn is_vector(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let arg = args.remove(0);
-        if let MalType::Vector(_, _) = arg {
-            Ok(MalType::True)
-        } else {
-            Ok(MalType::False)
-        }
+    assert_arg_count_gte(args, 1, "vector?")?;
+    let arg = args.remove(0);
+    if let MalType::Vector(_, _) = arg {
+        Ok(MalType::True)
     } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to vector?".to_string(),
-        ))
+        Ok(MalType::False)
     }
 }
 
 fn is_empty(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let arg = args.remove(0);
-        let vec = raw_vec(&arg)?;
-        Ok(mal_bool(vec.len() == 0))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to empty?".to_string(),
-        ))
-    }
+    assert_arg_count_gte(args, 1, "empty?")?;
+    let arg = args.remove(0);
+    let vec = raw_vec(&arg)?;
+    Ok(mal_bool(vec.len() == 0))
 }
 
 fn count(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let arg = args.remove(0);
-        let len = match arg {
-            MalType::List(vec, _) | MalType::Vector(vec, _) => vec.len(),
-            MalType::Nil => 0,
-            _ => {
-                return Err(MalError::WrongArguments(
-                    "Must pass a list or vector to count".to_string(),
-                ))
-            }
-        };
-        Ok(MalType::Number(len as i64))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to count".to_string(),
-        ))
-    }
-}
-
-fn is_list_like(val: &MalType) -> bool {
-    match *val {
-        MalType::List(_, _) | MalType::Vector(_, _) => true,
-        _ => false,
-    }
+    assert_arg_count_gte(args, 1, "count")?;
+    let arg = args.remove(0);
+    let len = match arg {
+        MalType::List(vec, _) | MalType::Vector(vec, _) => vec.len(),
+        MalType::Nil => 0,
+        _ => {
+            return Err(MalError::WrongArguments(
+                "Must pass a list or vector to count".to_string(),
+            ))
+        }
+    };
+    Ok(MalType::Number(len as i64))
 }
 
 fn is_hash_map(val: &MalType) -> bool {
@@ -311,7 +278,7 @@ fn are_hash_maps_equal(map1: &MalType, map2: &MalType) -> bool {
 }
 
 fn is_equal_bool(val1: &MalType, val2: &MalType) -> bool {
-    if is_list_like(&val1) && is_list_like(&val2) {
+    if _is_sequential(&val1) && _is_sequential(&val2) {
         are_lists_equal(&val1, &val2)
     } else if is_hash_map(&val1) && is_hash_map(&val2) {
         are_hash_maps_equal(&val1, &val2)
@@ -870,15 +837,17 @@ fn vals(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     }
 }
 
-fn is_sequental(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let arg = args.remove(0);
-        Ok(mal_bool(is_list_like(&arg)))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to sequential?".to_string(),
-        ))
+fn _is_sequential(val: &MalType) -> bool {
+    match *val {
+        MalType::List(_, _) | MalType::Vector(_, _) => true,
+        _ => false,
     }
+}
+
+fn is_sequential(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
+    assert_arg_count_gte(args, 1, "sequential?")?;
+    let arg = args.remove(0);
+    Ok(mal_bool(_is_sequential(&arg)))
 }
 
 fn readline(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
@@ -902,161 +871,121 @@ fn readline(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let arg = args.remove(0);
-        match arg {
-            MalType::Lambda { metadata, .. }
-            | MalType::Function { metadata, .. }
-            | MalType::List(_, metadata)
-            | MalType::Vector(_, metadata)
-            | MalType::HashMap(_, metadata) => Ok(*metadata),
-            _ => Ok(MalType::Nil),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to meta".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "meta")?;
+    let arg = args.remove(0);
+    match arg {
+        MalType::Lambda { metadata, .. }
+        | MalType::Function { metadata, .. }
+        | MalType::List(_, metadata)
+        | MalType::Vector(_, metadata)
+        | MalType::HashMap(_, metadata) => Ok(*metadata),
+        _ => Ok(MalType::Nil),
     }
 }
 
 fn with_meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let mut func = args.remove(0).clone();
-        let new_metadata = args.remove(0);
-        match func {
-            MalType::Lambda {
-                ref mut metadata, ..
-            }
-            | MalType::Function {
-                ref mut metadata, ..
-            }
-            | MalType::List(_, ref mut metadata)
-            | MalType::Vector(_, ref mut metadata)
-            | MalType::HashMap(_, ref mut metadata) => {
-                *metadata = Box::new(new_metadata.clone());
-            }
-            _ => {}
-        };
-        Ok(func)
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to with-meta".to_string(),
-        ))
-    }
+    assert_arg_count_gte(args, 2, "with-meta")?;
+    let mut func = args.remove(0).clone();
+    let new_metadata = args.remove(0);
+    match func {
+        MalType::Lambda {
+            ref mut metadata, ..
+        }
+        | MalType::Function {
+            ref mut metadata, ..
+        }
+        | MalType::List(_, ref mut metadata)
+        | MalType::Vector(_, ref mut metadata)
+        | MalType::HashMap(_, ref mut metadata) => {
+            *metadata = Box::new(new_metadata.clone());
+        }
+        _ => {}
+    };
+    Ok(func)
 }
 
 fn is_string(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::String(_) => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to string?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "string?")?;
+    match args.remove(0) {
+        MalType::String(_) => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
 fn is_number(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::Number(_) => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to number?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "number?")?;
+    match args.remove(0) {
+        MalType::Number(_) => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
 fn is_fn(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::Function { .. } => Ok(MalType::True),
-            MalType::Lambda { is_macro, .. } => Ok(mal_bool(!is_macro)),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to fn?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "fn?")?;
+    match args.remove(0) {
+        MalType::Function { .. } => Ok(MalType::True),
+        MalType::Lambda { is_macro, .. } => Ok(mal_bool(!is_macro)),
+        _ => Ok(MalType::False),
     }
 }
 
 fn is_macro(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::Lambda { is_macro, .. } => Ok(mal_bool(is_macro)),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to fn?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "macro?")?;
+    match args.remove(0) {
+        MalType::Lambda { is_macro, .. } => Ok(mal_bool(is_macro)),
+        _ => Ok(MalType::False),
     }
 }
 
 fn conj(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let list = args.remove(0);
-        match list {
-            MalType::List(mut vec, _) => {
-                for new_item in args {
-                    vec.insert(0, new_item.clone());
-                }
-                Ok(MalType::list(vec))
+    assert_arg_count_gte(args, 2, "conj")?;
+    let list = args.remove(0);
+    match list {
+        MalType::List(mut vec, _) => {
+            for new_item in args {
+                vec.insert(0, new_item.clone());
             }
-            MalType::Vector(mut vec, _) => {
-                for new_item in args {
-                    vec.push(new_item.clone());
-                }
-                Ok(MalType::vector(vec))
-            }
-            _ => Err(MalError::WrongArguments(
-                "Must pass a list or vector to conj".to_string(),
-            )),
+            Ok(MalType::list(vec))
         }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to conj".to_string(),
-        ))
+        MalType::Vector(mut vec, _) => {
+            for new_item in args {
+                vec.push(new_item.clone());
+            }
+            Ok(MalType::vector(vec))
+        }
+        _ => Err(MalError::WrongArguments(
+            "Must pass a list or vector to conj".to_string(),
+        )),
     }
 }
 
 fn seq(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let arg = args.remove(0);
-        match arg {
-            MalType::String(string) => {
-                if string.len() == 0 {
-                    Ok(MalType::Nil)
-                } else {
-                    Ok(MalType::list(
-                        string
-                            .chars()
-                            .map(|c| MalType::String(c.to_string()))
-                            .collect(),
-                    ))
-                }
+    assert_arg_count_gte(args, 1, "seq")?;
+    let arg = args.remove(0);
+    match arg {
+        MalType::String(string) => {
+            if string.len() == 0 {
+                Ok(MalType::Nil)
+            } else {
+                Ok(MalType::list(
+                    string
+                        .chars()
+                        .map(|c| MalType::String(c.to_string()))
+                        .collect(),
+                ))
             }
-            MalType::List(vec, _) | MalType::Vector(vec, _) => {
-                if vec.len() == 0 {
-                    Ok(MalType::Nil)
-                } else {
-                    Ok(MalType::list(vec))
-                }
-            }
-            MalType::Nil => Ok(MalType::Nil),
-            _ => Err(MalError::WrongArguments(
-                "Must pass a string, list, or vector to seq".to_string(),
-            )),
         }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to seq".to_string(),
-        ))
+        MalType::List(vec, _) | MalType::Vector(vec, _) => {
+            if vec.len() == 0 {
+                Ok(MalType::Nil)
+            } else {
+                Ok(MalType::list(vec))
+            }
+        }
+        MalType::Nil => Ok(MalType::Nil),
+        _ => Err(MalError::WrongArguments(
+            "Must pass a string, list, or vector to seq".to_string(),
+        )),
     }
 }
 
