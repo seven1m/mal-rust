@@ -328,123 +328,83 @@ fn is_gte(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn read_string(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        if let MalType::String(code) = args.remove(0) {
-            read_str(&code)
-        } else {
-            Err(MalError::WrongArguments(
-                "Must pass a string to read_string".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 1, "read-string")?;
+    if let MalType::String(code) = args.remove(0) {
+        read_str(&code)
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to read_string".to_string(),
+            "Must pass a string to read_string".to_string(),
         ))
     }
 }
 
 fn slurp(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        if let MalType::String(path) = args.remove(0) {
-            let mut file = File::open(path)?;
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)?;
-            Ok(MalType::String(contents))
-        } else {
-            Err(MalError::WrongArguments(
-                "Must pass a string to slurp".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 1, "slurp")?;
+    if let MalType::String(path) = args.remove(0) {
+        let mut file = File::open(path)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        Ok(MalType::String(contents))
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to slurp".to_string(),
+            "Must pass a string to slurp".to_string(),
         ))
     }
 }
 
 fn atom(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        Ok(MalType::atom(args.remove(0)))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to atom".to_string(),
-        ))
-    }
+    assert_arg_count_gte(args, 1, "atom")?;
+    Ok(MalType::atom(args.remove(0)))
 }
 
 fn is_atom(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        if let MalType::Atom(_) = args.remove(0) {
-            Ok(MalType::True)
-        } else {
-            Ok(MalType::False)
-        }
+    assert_arg_count_gte(args, 1, "atom?")?;
+    if let MalType::Atom(_) = args.remove(0) {
+        Ok(MalType::True)
     } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to atom?".to_string(),
-        ))
+        Ok(MalType::False)
     }
 }
 
 fn deref(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        if let MalType::Atom(val) = args.remove(0) {
-            Ok(val.borrow().clone())
-        } else {
-            Err(MalError::WrongArguments(
-                "Must pass an atom to deref".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 1, "deref")?;
+    if let MalType::Atom(val) = args.remove(0) {
+        Ok(val.borrow().clone())
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to deref".to_string(),
+            "Must pass an atom to deref".to_string(),
         ))
     }
 }
 
 fn reset(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 1 {
-        let mut atom = args.remove(0);
-        let new_val = args.remove(0);
-        if let MalType::Atom(ref mut val) = atom {
-            val.replace(new_val.clone());
-            Ok(new_val)
-        } else {
-            Err(MalError::WrongArguments(
-                "Must pass an atom to reset".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 2, "reset!")?;
+    let mut atom = args.remove(0);
+    let new_val = args.remove(0);
+    if let MalType::Atom(ref mut val) = atom {
+        val.replace(new_val.clone());
+        Ok(new_val)
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least two arguments to reset!".to_string(),
+            "Must pass an atom to reset".to_string(),
         ))
     }
 }
 
 fn swap(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 1 {
-        let mut atom = args.remove(0);
-        let func = args.remove(0);
-        atom.swap(func, args)
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to swap!".to_string(),
-        ))
-    }
+    assert_arg_count_gte(args, 2, "swap")?;
+    let mut atom = args.remove(0);
+    let func = args.remove(0);
+    atom.swap(func, args)
 }
 
 fn cons(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let item = args.remove(0);
-        let list = args.remove(0);
-        let mut vec = raw_vec(&list)?;
-        vec.insert(0, item);
-        Ok(MalType::list(vec))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to cons".to_string(),
-        ))
-    }
+    assert_arg_count_gte(args, 2, "cons")?;
+    let item = args.remove(0);
+    let list = args.remove(0);
+    let mut vec = raw_vec(&list)?;
+    vec.insert(0, item);
+    Ok(MalType::list(vec))
 }
 
 fn concat(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
@@ -459,212 +419,147 @@ fn concat(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn nth(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let list = args.remove(0);
-        let index = raw_num(&args.remove(0))? as usize;
-        let vec = raw_vec(&list)?;
-        if vec.len() > index {
-            Ok(vec[index].clone())
-        } else {
-            Err(MalError::IndexOutOfBounds {
-                size: vec.len(),
-                index,
-            })
-        }
+    assert_arg_count_gte(args, 2, "nth")?;
+    let list = args.remove(0);
+    let index = raw_num(&args.remove(0))? as usize;
+    let vec = raw_vec(&list)?;
+    if vec.len() > index {
+        Ok(vec[index].clone())
     } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to nth".to_string(),
-        ))
+        Err(MalError::IndexOutOfBounds {
+            size: vec.len(),
+            index,
+        })
     }
 }
 
 fn first(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let list = args.remove(0);
-        match list {
-            MalType::List(vec, _) | MalType::Vector(vec, _) => {
-                if vec.len() > 0 {
-                    Ok(vec[0].clone())
-                } else {
-                    Ok(MalType::Nil)
-                }
+    assert_arg_count_gte(args, 1, "first")?;
+    let list = args.remove(0);
+    match list {
+        MalType::List(vec, _) | MalType::Vector(vec, _) => {
+            if vec.len() > 0 {
+                Ok(vec[0].clone())
+            } else {
+                Ok(MalType::Nil)
             }
-            MalType::Nil => Ok(MalType::Nil),
-            _ => Err(MalError::WrongArguments(
-                format!("Expected a list passed to first but got: {:?}", list).to_string(),
-            )),
         }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to first".to_string(),
-        ))
+        MalType::Nil => Ok(MalType::Nil),
+        _ => Err(MalError::WrongArguments(
+            format!("Expected a list passed to first but got: {:?}", list).to_string(),
+        )),
     }
 }
 
 fn rest(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let list = args.remove(0);
-        match list {
-            MalType::List(mut vec, _) | MalType::Vector(mut vec, _) => {
-                if vec.len() > 0 {
-                    vec.remove(0);
-                    Ok(MalType::list(vec))
-                } else {
-                    Ok(MalType::list(vec![]))
-                }
+    assert_arg_count_gte(args, 1, "rest")?;
+    let list = args.remove(0);
+    match list {
+        MalType::List(mut vec, _) | MalType::Vector(mut vec, _) => {
+            if vec.len() > 0 {
+                vec.remove(0);
+                Ok(MalType::list(vec))
+            } else {
+                Ok(MalType::list(vec![]))
             }
-            MalType::Nil => Ok(MalType::list(vec![])),
-            _ => Err(MalError::WrongArguments(
-                format!("Expected a list passed to rest but got: {:?}", list).to_string(),
-            )),
         }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to rest".to_string(),
-        ))
+        MalType::Nil => Ok(MalType::list(vec![])),
+        _ => Err(MalError::WrongArguments(
+            format!("Expected a list passed to rest but got: {:?}", list).to_string(),
+        )),
     }
 }
 
 fn throw(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let val = args.remove(0);
-        Err(MalError::Generic(val))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to throw".to_string(),
-        ))
-    }
+    assert_arg_count_gte(args, 1, "throw")?;
+    let val = args.remove(0);
+    Err(MalError::Generic(val))
 }
 
 fn apply(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let func = args.remove(0);
-        let last_index = args.len() - 1;
-        let list = args.remove(last_index);
-        for item in raw_vec(&list)? {
-            args.push(item);
-        }
-        eval_func(func, args)
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to apply".to_string(),
-        ))
+    assert_arg_count_gte(args, 2, "apply")?;
+    let func = args.remove(0);
+    let last_index = args.len() - 1;
+    let list = args.remove(last_index);
+    for item in raw_vec(&list)? {
+        args.push(item);
     }
+    eval_func(func, args)
 }
 
 fn map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let lambda = args.remove(0);
-        let list = args.remove(0);
-        let mut result_list = vec![];
-        for item in raw_vec(&list)? {
-            let mut args = vec![item];
-            let result = eval_func(lambda.clone(), &mut args)?;
-            result_list.push(result);
-        }
-        Ok(MalType::list(result_list))
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to map".to_string(),
-        ))
+    assert_arg_count_gte(args, 2, "map")?;
+    let lambda = args.remove(0);
+    let list = args.remove(0);
+    let mut result_list = vec![];
+    for item in raw_vec(&list)? {
+        let mut args = vec![item];
+        let result = eval_func(lambda.clone(), &mut args)?;
+        result_list.push(result);
     }
+    Ok(MalType::list(result_list))
 }
 
 fn is_nil(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::Nil => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to nil?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "nil?")?;
+    match args.remove(0) {
+        MalType::Nil => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
 fn is_true(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::True => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to true?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "true?")?;
+    match args.remove(0) {
+        MalType::True => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
 fn is_false(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::False => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to false?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "false?")?;
+    match args.remove(0) {
+        MalType::False => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
 fn symbol(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        if let MalType::String(name) = args.remove(0) {
-            Ok(MalType::Symbol(name))
-        } else {
-            Err(MalError::WrongArguments(
-                "Must pass a string to symbol".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 1, "symbol")?;
+    if let MalType::String(name) = args.remove(0) {
+        Ok(MalType::Symbol(name))
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to symbol".to_string(),
+            "Must pass a string to symbol".to_string(),
         ))
     }
 }
 
 fn is_symbol(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::Symbol(_) => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to symbol?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "symbol?")?;
+    match args.remove(0) {
+        MalType::Symbol(_) => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
 fn keyword(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        let arg = args.remove(0);
-        match arg {
-            MalType::String(name) => Ok(MalType::Keyword(name)),
-            MalType::Keyword(_) => Ok(arg),
-            _ => Err(MalError::WrongArguments(
-                "Must pass a string to keyword".to_string(),
-            )),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to keyword".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "keyword")?;
+    let arg = args.remove(0);
+    match arg {
+        MalType::String(name) => Ok(MalType::Keyword(name)),
+        MalType::Keyword(_) => Ok(arg),
+        _ => Err(MalError::WrongArguments(
+            "Must pass a string to keyword".to_string(),
+        )),
     }
 }
 
 fn is_keyword(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::Keyword(_) => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to keyword?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "keyword?")?;
+    match args.remove(0) {
+        MalType::Keyword(_) => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
@@ -689,15 +584,10 @@ fn hash_map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn is_map(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() > 0 {
-        match args.remove(0) {
-            MalType::HashMap(_, _) => Ok(MalType::True),
-            _ => Ok(MalType::False),
-        }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least one argument to map?".to_string(),
-        ))
+    assert_arg_count_gte(args, 1, "map?")?;
+    match args.remove(0) {
+        MalType::HashMap(_, _) => Ok(MalType::True),
+        _ => Ok(MalType::False),
     }
 }
 
@@ -729,110 +619,85 @@ fn assoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 }
 
 fn dissoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let map = args.remove(0);
-        if let MalType::HashMap(map, metadata) = map {
-            let mut map = map.clone();
-            let mut list_iter = args.iter();
-            loop {
-                if let Some(key) = list_iter.next() {
-                    if map.contains_key(key) {
-                        map.remove(key);
-                    }
-                } else {
-                    break;
+    assert_arg_count_gte(args, 1, "dissoc")?;
+    let map = args.remove(0);
+    if let MalType::HashMap(map, metadata) = map {
+        let mut map = map.clone();
+        let mut list_iter = args.iter();
+        loop {
+            if let Some(key) = list_iter.next() {
+                if map.contains_key(key) {
+                    map.remove(key);
                 }
+            } else {
+                break;
             }
-            Ok(MalType::HashMap(map, metadata))
-        } else {
-            Err(MalError::WrongArguments(
-                "First argument must be a hash-map".to_string(),
-            ))
         }
+        Ok(MalType::HashMap(map, metadata))
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to dissoc".to_string(),
+            "First argument must be a hash-map".to_string(),
         ))
     }
 }
 
 fn get(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let map = args.remove(0);
-        match map {
-            MalType::HashMap(map, _) => {
-                let key = args.remove(0);
-                match map.get(&key) {
-                    Some(val) => Ok(val.clone()),
-                    None => Ok(MalType::Nil),
-                }
+    assert_arg_count_gte(args, 2, "get")?;
+    let map = args.remove(0);
+    match map {
+        MalType::HashMap(map, _) => {
+            let key = args.remove(0);
+            match map.get(&key) {
+                Some(val) => Ok(val.clone()),
+                None => Ok(MalType::Nil),
             }
-            MalType::Nil => Ok(MalType::Nil),
-            _ => Err(MalError::WrongArguments(
-                "First argument must be a hash-map".to_string(),
-            )),
         }
-    } else {
-        Err(MalError::WrongArguments(
-            "Must pass at least two arguments to get".to_string(),
-        ))
+        MalType::Nil => Ok(MalType::Nil),
+        _ => Err(MalError::WrongArguments(
+            "First argument must be a hash-map".to_string(),
+        )),
     }
 }
 
 fn contains(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 2 {
-        let map = args.remove(0);
-        if let MalType::HashMap(map, _) = map {
-            let key = args.remove(0);
-            if map.contains_key(&key) {
-                Ok(MalType::True)
-            } else {
-                Ok(MalType::False)
-            }
+    assert_arg_count_gte(args, 2, "contains")?;
+    let map = args.remove(0);
+    if let MalType::HashMap(map, _) = map {
+        let key = args.remove(0);
+        if map.contains_key(&key) {
+            Ok(MalType::True)
         } else {
-            Err(MalError::WrongArguments(
-                "First argument must be a hash-map".to_string(),
-            ))
+            Ok(MalType::False)
         }
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least two arguments to contains".to_string(),
+            "First argument must be a hash-map".to_string(),
         ))
     }
 }
 
 fn keys(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let map = args.remove(0);
-        if let MalType::HashMap(map, _) = map {
-            let list = map.keys().map(|k| k.clone()).collect();
-            Ok(MalType::list(list))
-        } else {
-            Err(MalError::WrongArguments(
-                "First argument must be a hash-map".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 1, "keys")?;
+    let map = args.remove(0);
+    if let MalType::HashMap(map, _) = map {
+        let list = map.keys().map(|k| k.clone()).collect();
+        Ok(MalType::list(list))
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to keys".to_string(),
+            "First argument must be a hash-map".to_string(),
         ))
     }
 }
 
 fn vals(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
-    if args.len() >= 1 {
-        let map = args.remove(0);
-        if let MalType::HashMap(map, _) = map {
-            let list = map.values().map(|k| k.clone()).collect();
-            Ok(MalType::list(list))
-        } else {
-            Err(MalError::WrongArguments(
-                "First argument must be a hash-map".to_string(),
-            ))
-        }
+    assert_arg_count_gte(args, 1, "vals")?;
+    let map = args.remove(0);
+    if let MalType::HashMap(map, _) = map {
+        let list = map.values().map(|k| k.clone()).collect();
+        Ok(MalType::list(list))
     } else {
         Err(MalError::WrongArguments(
-            "Must pass at least one argument to vals".to_string(),
+            "First argument must be a hash-map".to_string(),
         ))
     }
 }
