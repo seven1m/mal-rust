@@ -253,29 +253,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_def() {
-        let mut repl_env = top_repl_env();
-        rep("(def! x 1)".to_string(), &mut repl_env).unwrap();
-        let result = rep("x".to_string(), &mut repl_env).unwrap();
-        assert_eq!("1", format!("{}", result));
-    }
-
-    #[test]
-    fn test_let() {
-        let mut repl_env = top_repl_env();
-        let result = rep("(let* [x 1 y 2 z x] [x y z])".to_string(), &mut repl_env).unwrap();
-        assert_eq!("[1 2 1]", format!("{}", result));
-    }
-
-    #[test]
-    fn test_do() {
-        let mut repl_env = top_repl_env();
-        let result = rep("(do 1 (def! x (+ 1 2)) (* 2 3))".to_string(), &mut repl_env).unwrap();
-        assert_eq!("6", result);
-        assert_eq!(MalType::Number(3), repl_env.get("x").unwrap());
-    }
-
-    #[test]
     fn test_if() {
         let mut repl_env = top_repl_env();
         let result = rep("(if 1 2 3)".to_string(), &mut repl_env).unwrap();
@@ -307,6 +284,14 @@ mod tests {
             &mut repl_env,
         ).unwrap();
         assert_eq!("0", result);
+    }
+
+    #[test]
+    fn test_do() {
+        let mut repl_env = top_repl_env();
+        let result = rep("(do 1 (def! x (+ 1 2)) (* 2 3))".to_string(), &mut repl_env).unwrap();
+        assert_eq!("6", result);
+        assert_eq!(MalType::Number(3), repl_env.get("x").unwrap());
     }
 
     #[test]
