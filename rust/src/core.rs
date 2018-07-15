@@ -557,8 +557,13 @@ fn assoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                     break;
                 }
             }
-            let mut map = MalType::hashmap(map);
-            map.copy_metadata(&args[0]);
+            let map = MalType::hashmap_with_meta(
+                map,
+                args[0]
+                    .get_metadata()
+                    .expect("Expected hashmap to return metadata")
+                    .clone(),
+            );
             Ok(map)
         } else {
             Err(MalError::WrongArguments(
@@ -586,8 +591,13 @@ fn dissoc(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
                 break;
             }
         }
-        let mut map = MalType::hashmap(map);
-        map.copy_metadata(&args[0]);
+        let map = MalType::hashmap_with_meta(
+            map,
+            args[0]
+                .get_metadata()
+                .expect("Expected hashmap to return metadata")
+                .clone(),
+        );
         Ok(map)
     } else {
         Err(MalError::WrongArguments(
@@ -685,8 +695,7 @@ fn meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
 fn with_meta(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
     assert_arg_count_gte(args, 2, "with-meta")?;
     let mut func = args[0].clone();
-    func.set_metadata(args[1].clone());
-    Ok(func)
+    Ok(func.clone_with_meta(args[1].clone()))
 }
 
 fn is_string(args: &mut Vec<MalType>, _env: Option<Env>) -> MalResult {
@@ -780,7 +789,10 @@ fn gensym(_args: &mut Vec<MalType>, env: Option<Env>) -> MalResult {
     } else {
         panic!("not possible")
     };
-    let add_fn = MalType::function(Box::new(add), Some(env));
+    let add_fn = MalType::function(Function {
+        func: Box::new(add),
+        env: Some(env),
+    });
     auto_incr.swap(add_fn, &mut vec![MalType::number(1)])?;
     let name = "gensym-".to_string() + &number.to_string();
     Ok(MalType::symbol(name))

@@ -52,12 +52,18 @@ fn top_repl_env() -> Env {
     for (name, func) in NS.iter() {
         repl_env.set(
             name,
-            MalType::function(Box::new(*func), Some(repl_env.clone())),
+            MalType::function(Function {
+                func: Box::new(*func),
+                env: Some(repl_env.clone()),
+            }),
         );
     }
     repl_env.set(
         "eval",
-        MalType::function(Box::new(eval_fn), Some(repl_env.clone())),
+        MalType::function(Function {
+            func: Box::new(eval_fn),
+            env: Some(repl_env.clone()),
+        }),
     );
     let argv: Vec<_> = env::args().collect();
     repl_env.set(
@@ -260,7 +266,7 @@ fn special_defmacro(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult
     if let Some(sym) = name.symbol_val() {
         let mut val = eval(vec.remove(0), repl_env.clone())?;
         if val.is_lambda() {
-            val.make_macro();
+            val = val.make_macro();
         } else {
             return Err(MalError::WrongArguments(format!(
                 "Expected a fn as the second argument to defmacro! but got: {:?}",
@@ -344,11 +350,12 @@ fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     if let Some(args) = args.list_or_vector_val() {
         let mut args = args.clone();
         let body = list[1].clone();
-        Ok(TailPosition::Return(MalType::lambda(
-            repl_env.clone(),
+        Ok(TailPosition::Return(MalType::lambda(Lambda {
+            env: repl_env.clone(),
             args,
-            vec![body],
-        )))
+            body: vec![body],
+            is_macro: false,
+        })))
     } else {
         Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",
@@ -469,10 +476,11 @@ mod tests {
 
     #[test]
     fn test_defmacro() {
-        //(defmacro! one (fn* () 1))
         let repl_env = top_repl_env();
         rep("(defmacro! one (fn* () 1))", repl_env.clone()).unwrap();
         let result = rep("(one)", repl_env.clone()).unwrap();
+        assert_eq!("1", result);
+        let result = rep("(or 1 2 3 4)", repl_env.clone()).unwrap();
         assert_eq!("1", result);
     }
 }

@@ -12,10 +12,34 @@ use std::collections::BTreeMap;
 fn main() {
     let mut readline = Readline::new("user> ");
     let mut repl_env = Env::new(None);
-    repl_env.set("+", MalType::function(Box::new(core::add), None));
-    repl_env.set("-", MalType::function(Box::new(core::subtract), None));
-    repl_env.set("*", MalType::function(Box::new(core::multiply), None));
-    repl_env.set("/", MalType::function(Box::new(core::divide), None));
+    repl_env.set(
+        "+",
+        MalType::function(Function {
+            func: Box::new(core::add),
+            env: None,
+        }),
+    );
+    repl_env.set(
+        "-",
+        MalType::function(Function {
+            func: Box::new(core::subtract),
+            env: None,
+        }),
+    );
+    repl_env.set(
+        "*",
+        MalType::function(Function {
+            func: Box::new(core::multiply),
+            env: None,
+        }),
+    );
+    repl_env.set(
+        "/",
+        MalType::function(Function {
+            func: Box::new(core::divide),
+            env: None,
+        }),
+    );
     loop {
         match readline.get() {
             Some(line) => {

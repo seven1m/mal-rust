@@ -35,19 +35,31 @@ fn rep(input: String) -> Result<String, MalError> {
     let mut repl_env: ReplEnv = HashMap::new();
     repl_env.insert(
         "+".to_string(),
-        MalType::function(Box::new(core::add), None),
+        MalType::function(Function {
+            func: Box::new(core::add),
+            env: None,
+        }),
     );
     repl_env.insert(
         "-".to_string(),
-        MalType::function(Box::new(core::subtract), None),
+        MalType::function(Function {
+            func: Box::new(core::subtract),
+            env: None,
+        }),
     );
     repl_env.insert(
         "*".to_string(),
-        MalType::function(Box::new(core::multiply), None),
+        MalType::function(Function {
+            func: Box::new(core::multiply),
+            env: None,
+        }),
     );
     repl_env.insert(
         "/".to_string(),
-        MalType::function(Box::new(core::divide), None),
+        MalType::function(Function {
+            func: Box::new(core::divide),
+            env: None,
+        }),
     );
     let out = read(input)?;
     let out = eval(out, &repl_env)?;

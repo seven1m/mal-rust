@@ -51,12 +51,18 @@ fn top_repl_env() -> Env {
     for (name, func) in NS.iter() {
         repl_env.set(
             name,
-            MalType::function(Box::new(*func), Some(repl_env.clone())),
+            MalType::function(Function {
+                func: Box::new(*func),
+                env: Some(repl_env.clone()),
+            }),
         );
     }
     repl_env.set(
         "eval",
-        MalType::function(Box::new(eval_fn), Some(repl_env.clone())),
+        MalType::function(Function {
+            func: Box::new(eval_fn),
+            env: Some(repl_env.clone()),
+        }),
     );
     let argv: Vec<_> = env::args().collect();
     repl_env.set(
@@ -298,11 +304,12 @@ fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     if let Some(args) = args.list_or_vector_val() {
         let mut args = args.clone();
         let body = list[1].clone();
-        Ok(TailPosition::Return(MalType::lambda(
-            repl_env.clone(),
+        Ok(TailPosition::Return(MalType::lambda(Lambda {
+            env: repl_env.clone(),
             args,
-            vec![body],
-        )))
+            body: vec![body],
+            is_macro: false,
+        })))
     } else {
         Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",

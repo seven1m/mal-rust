@@ -33,7 +33,13 @@ fn main() {
 fn top_repl_env() -> Env {
     let repl_env = Env::new(None);
     for (name, func) in NS.iter() {
-        repl_env.set(name, MalType::function(Box::new(*func), None));
+        repl_env.set(
+            name,
+            MalType::function(Function {
+                func: Box::new(*func),
+                env: None,
+            }),
+        );
     }
     rep(
         "(def! not (fn* (a) (if a false true)))".to_string(),
@@ -238,7 +244,12 @@ fn special_fn(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     if let Some(args) = args.list_or_vector_val() {
         let mut args = args.clone();
         let body = list[1].clone();
-        Ok(MalType::lambda(repl_env.clone(), args, vec![body]))
+        Ok(MalType::lambda(Lambda {
+            env: repl_env.clone(),
+            args,
+            body: vec![body],
+            is_macro: false,
+        }))
     } else {
         Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",

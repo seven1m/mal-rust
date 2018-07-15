@@ -11,7 +11,7 @@ use env::Env;
 use core::eval_func;
 
 #[derive(Clone)]
-pub enum MalType {
+pub enum _MalType {
     Nil,
     True,
     False,
@@ -22,8 +22,8 @@ pub enum MalType {
     List(Vec<MalType>, Box<MalType>),
     Vector(Vec<MalType>, Box<MalType>),
     HashMap(BTreeMap<MalType, MalType>, Box<MalType>),
-    Function(Function),
-    Lambda(Lambda),
+    Function(Function, Box<MalType>),
+    Lambda(Lambda, Box<MalType>),
     Atom(Rc<RefCell<MalType>>),
 }
 
@@ -33,311 +33,348 @@ pub struct Lambda {
     pub args: Vec<MalType>,
     pub body: Vec<MalType>,
     pub is_macro: bool,
-    pub metadata: Box<MalType>,
 }
 
 #[derive(Clone)]
 pub struct Function {
     pub func: Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
     pub env: Option<Env>,
-    pub metadata: Box<MalType>,
 }
+
+#[derive(Clone)]
+pub struct MalType(Rc<_MalType>);
 
 impl MalType {
     pub fn nil() -> MalType {
-        MalType::Nil
+        MalType(Rc::new(_MalType::Nil))
     }
 
     pub fn is_nil(&self) -> bool {
-        match self {
-            MalType::Nil => true,
+        match *self.0 {
+            _MalType::Nil => true,
             _ => false,
         }
     }
 
     pub fn bool_true() -> MalType {
-        MalType::True
+        MalType(Rc::new(_MalType::True))
     }
 
     pub fn is_true(&self) -> bool {
-        match self {
-            MalType::True => true,
+        match *self.0 {
+            _MalType::True => true,
             _ => false,
         }
     }
 
     pub fn bool_false() -> MalType {
-        MalType::False
+        MalType(Rc::new(_MalType::False))
     }
 
     pub fn is_false(&self) -> bool {
-        match self {
-            MalType::False => true,
+        match *self.0 {
+            _MalType::False => true,
             _ => false,
         }
     }
 
     pub fn is_falsey(&self) -> bool {
-        match self {
-            MalType::False | MalType::Nil => true,
+        match *self.0 {
+            _MalType::False | _MalType::Nil => true,
             _ => false,
         }
     }
 
     pub fn number(val: i64) -> MalType {
-        MalType::Number(val)
+        MalType(Rc::new(_MalType::Number(val)))
     }
 
     pub fn number_val(&self) -> Option<i64> {
-        match self {
-            MalType::Number(val) => Some(*val),
+        match *self.0 {
+            _MalType::Number(val) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_number(&self) -> bool {
-        match self {
-            MalType::Number(_) => true,
+        match *self.0 {
+            _MalType::Number(_) => true,
             _ => false,
         }
     }
 
     pub fn keyword<S: Into<String>>(val: S) -> MalType {
-        MalType::Keyword(val.into())
+        MalType(Rc::new(_MalType::Keyword(val.into())))
     }
 
     pub fn keyword_val(&self) -> Option<&str> {
-        match self {
-            MalType::Keyword(ref val) => Some(val),
+        match *self.0 {
+            _MalType::Keyword(ref val) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_keyword(&self) -> bool {
-        match self {
-            MalType::Keyword(_) => true,
+        match *self.0 {
+            _MalType::Keyword(_) => true,
             _ => false,
         }
     }
 
     pub fn string<S: Into<String>>(val: S) -> MalType {
-        MalType::String(val.into())
+        MalType(Rc::new(_MalType::String(val.into())))
     }
 
     pub fn string_val(&self) -> Option<&str> {
-        match self {
-            MalType::String(ref val) => Some(val),
+        match *self.0 {
+            _MalType::String(ref val) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_string(&self) -> bool {
-        match self {
-            MalType::String(_) => true,
+        match *self.0 {
+            _MalType::String(_) => true,
             _ => false,
         }
     }
 
     pub fn symbol<S: Into<String>>(val: S) -> MalType {
-        MalType::Symbol(val.into())
+        MalType(Rc::new(_MalType::Symbol(val.into())))
     }
 
     pub fn symbol_val(&self) -> Option<&str> {
-        match self {
-            MalType::Symbol(ref val) => Some(val),
+        match *self.0 {
+            _MalType::Symbol(ref val) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_symbol(&self) -> bool {
-        match self {
-            MalType::Symbol(_) => true,
+        match *self.0 {
+            _MalType::Symbol(_) => true,
             _ => false,
         }
     }
 
     pub fn list(vec: Vec<MalType>) -> MalType {
-        MalType::List(vec, Box::new(MalType::Nil))
+        MalType::list_with_meta(vec, MalType::nil())
+    }
+
+    pub fn list_with_meta(vec: Vec<MalType>, meta: MalType) -> MalType {
+        MalType(Rc::new(_MalType::List(vec, Box::new(meta))))
     }
 
     pub fn list_val(&self) -> Option<&Vec<MalType>> {
-        match self {
-            MalType::List(ref val, _) => Some(val),
+        match *self.0 {
+            _MalType::List(ref val, _) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_list(&self) -> bool {
-        match self {
-            MalType::List(_, _) => true,
+        match *self.0 {
+            _MalType::List(_, _) => true,
             _ => false,
         }
     }
 
     pub fn vector(vec: Vec<MalType>) -> MalType {
-        MalType::Vector(vec, Box::new(MalType::Nil))
+        MalType::vector_with_meta(vec, MalType::nil())
+    }
+
+    pub fn vector_with_meta(vec: Vec<MalType>, meta: MalType) -> MalType {
+        MalType(Rc::new(_MalType::Vector(vec, Box::new(meta))))
     }
 
     pub fn vector_val(&self) -> Option<&Vec<MalType>> {
-        match self {
-            MalType::Vector(ref val, _) => Some(val),
+        match *self.0 {
+            _MalType::Vector(ref val, _) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_vector(&self) -> bool {
-        match self {
-            MalType::Vector(_, _) => true,
+        match *self.0 {
+            _MalType::Vector(_, _) => true,
             _ => false,
         }
     }
 
     pub fn list_or_vector_val(&self) -> Option<&Vec<MalType>> {
-        match self {
-            MalType::List(ref val, _) | MalType::Vector(ref val, _) => Some(val),
+        match *self.0 {
+            _MalType::List(ref val, _) | _MalType::Vector(ref val, _) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_list_or_vector(&self) -> bool {
-        match self {
-            MalType::List(_, _) | MalType::Vector(_, _) => true,
+        match *self.0 {
+            _MalType::List(_, _) | _MalType::Vector(_, _) => true,
             _ => false,
         }
     }
 
     pub fn hashmap(map: BTreeMap<MalType, MalType>) -> MalType {
-        MalType::HashMap(map, Box::new(MalType::Nil))
+        MalType::hashmap_with_meta(map, MalType::nil())
+    }
+
+    pub fn hashmap_with_meta(map: BTreeMap<MalType, MalType>, meta: MalType) -> MalType {
+        MalType(Rc::new(_MalType::HashMap(map, Box::new(meta))))
     }
 
     pub fn hashmap_val(&self) -> Option<&BTreeMap<MalType, MalType>> {
-        match self {
-            MalType::HashMap(ref val, _) => Some(val),
+        match *self.0 {
+            _MalType::HashMap(ref val, _) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_hashmap(&self) -> bool {
-        match self {
-            MalType::HashMap(_, _) => true,
+        match *self.0 {
+            _MalType::HashMap(_, _) => true,
             _ => false,
         }
     }
 
-    pub fn function(
-        func: Box<fn(&mut Vec<MalType>, Option<Env>) -> MalResult>,
-        env: Option<Env>,
-    ) -> MalType {
-        MalType::Function(Function {
-            env,
-            func,
-            metadata: Box::new(MalType::Nil),
-        })
+    pub fn function(function: Function) -> MalType {
+        MalType::function_with_meta(function, MalType::nil())
+    }
+
+    pub fn function_with_meta(function: Function, meta: MalType) -> MalType {
+        MalType(Rc::new(_MalType::Function(function, Box::new(meta))))
     }
 
     pub fn function_val(&self) -> Option<&Function> {
-        match self {
-            MalType::Function(function) => Some(function),
+        match *self.0 {
+            _MalType::Function(ref function, _) => Some(function),
             _ => None,
         }
     }
 
     pub fn is_function(&self) -> bool {
-        match self {
-            MalType::Function { .. } => true,
+        match *self.0 {
+            _MalType::Function { .. } => true,
             _ => false,
         }
     }
 
-    pub fn lambda(env: Env, args: Vec<MalType>, body: Vec<MalType>) -> MalType {
-        MalType::Lambda(Lambda {
-            env,
-            args,
-            body,
-            is_macro: false,
-            metadata: Box::new(MalType::Nil),
-        })
+    pub fn lambda(lambda: Lambda) -> MalType {
+        MalType::lambda_with_meta(lambda, MalType::nil())
+    }
+
+    pub fn lambda_with_meta(lambda: Lambda, meta: MalType) -> MalType {
+        MalType(Rc::new(_MalType::Lambda(lambda, Box::new(meta))))
     }
 
     pub fn lambda_val(&self) -> Option<&Lambda> {
-        match self {
-            MalType::Lambda(lambda) => Some(lambda),
+        match *self.0 {
+            _MalType::Lambda(ref lambda, _) => Some(lambda),
             _ => None,
         }
     }
 
-    pub fn make_macro(&mut self) {
-        if let MalType::Lambda(Lambda {
-            ref mut is_macro, ..
-        }) = self
+    pub fn make_macro(&mut self) -> MalType {
+        if let _MalType::Lambda(
+            Lambda {
+                ref env,
+                ref args,
+                ref body,
+                ..
+            },
+            ref meta,
+        ) = *self.0
         {
-            *is_macro = true;
+            MalType::lambda_with_meta(
+                Lambda {
+                    env: env.clone(),
+                    args: args.clone(),
+                    body: body.clone(),
+                    is_macro: true,
+                },
+                (**meta).clone(),
+            )
         } else {
             panic!("Not a lambda!");
         }
     }
 
     pub fn is_lambda(&self) -> bool {
-        match self {
-            MalType::Lambda { .. } => true,
+        match *self.0 {
+            _MalType::Lambda { .. } => true,
             _ => false,
         }
     }
 
     pub fn atom(val: MalType) -> MalType {
-        MalType::Atom(Rc::new(RefCell::new(val)))
+        MalType(Rc::new(_MalType::Atom(Rc::new(RefCell::new(val)))))
     }
 
     pub fn atom_val(&self) -> Option<&Rc<RefCell<MalType>>> {
-        match self {
-            MalType::Atom(ref val) => Some(val),
+        match *self.0 {
+            _MalType::Atom(ref val) => Some(val),
             _ => None,
         }
     }
 
     pub fn is_atom(&self) -> bool {
-        match self {
-            MalType::Atom(_) => true,
+        match *self.0 {
+            _MalType::Atom(_) => true,
             _ => false,
         }
     }
 
     pub fn get_metadata(&self) -> Option<&MalType> {
-        match self {
-            MalType::List(_, ref metadata)
-            | MalType::Vector(_, ref metadata)
-            | MalType::HashMap(_, ref metadata)
-            | MalType::Function(Function { ref metadata, .. })
-            | MalType::Lambda(Lambda { ref metadata, .. }) => Some(metadata),
+        match *self.0 {
+            _MalType::List(_, ref meta)
+            | _MalType::Vector(_, ref meta)
+            | _MalType::HashMap(_, ref meta)
+            | _MalType::Function(_, ref meta)
+            | _MalType::Lambda(_, ref meta) => Some(meta),
             _ => None,
         }
     }
 
-    pub fn set_metadata(&mut self, new_metadata: MalType) {
-        match self {
-            MalType::List(_, ref mut metadata)
-            | MalType::Vector(_, ref mut metadata)
-            | MalType::HashMap(_, ref mut metadata)
-            | MalType::Function(Function {
-                ref mut metadata, ..
-            })
-            | MalType::Lambda(Lambda {
-                ref mut metadata, ..
-            }) => *metadata = Box::new(new_metadata),
+    pub fn clone_with_meta(&mut self, meta: MalType) -> MalType {
+        match *self.0 {
+            _MalType::List(ref vec, _) => MalType::list_with_meta(vec.clone(), meta),
+            _MalType::Vector(ref vec, _) => MalType::vector_with_meta(vec.clone(), meta),
+            _MalType::HashMap(ref map, _) => MalType::hashmap_with_meta(map.clone(), meta),
+            _MalType::Function(
+                Function {
+                    ref func, ref env, ..
+                },
+                _,
+            ) => MalType::function_with_meta(
+                Function {
+                    func: func.clone(),
+                    env: env.clone(),
+                },
+                meta,
+            ),
+            _MalType::Lambda(
+                Lambda {
+                    ref env,
+                    ref args,
+                    ref body,
+                    ref is_macro,
+                },
+                _,
+            ) => MalType::lambda_with_meta(
+                Lambda {
+                    env: env.clone(),
+                    args: args.clone(),
+                    body: body.clone(),
+                    is_macro: *is_macro,
+                },
+                meta,
+            ),
             _ => panic!("not a type with metadata"),
         }
     }
 
-    pub fn copy_metadata(&mut self, other: &MalType) {
-        if let Some(metadata) = other.get_metadata() {
-            self.set_metadata(metadata.to_owned());
-        } else {
-            self.set_metadata(MalType::nil());
-        }
-    }
-
     pub fn swap(&mut self, func: MalType, args: &mut Vec<MalType>) -> MalResult {
-        if let MalType::Atom(ref mut val) = *self {
+        if let _MalType::Atom(ref val) = *self.0 {
             args.insert(0, val.borrow().to_owned());
             let new_val = eval_func(func, args)?;
             val.replace(new_val.clone());
@@ -352,18 +389,28 @@ impl MalType {
 
 impl cmp::PartialEq for MalType {
     fn eq(&self, other: &MalType) -> bool {
-        match (self, other) {
-            (&MalType::Nil, &MalType::Nil) => true,
-            (&MalType::True, &MalType::True) => true,
-            (&MalType::False, &MalType::False) => true,
-            (&MalType::Number(ref a), &MalType::Number(ref b)) => a == b,
-            (&MalType::Keyword(ref a), &MalType::Keyword(ref b)) => a == b,
-            (&MalType::String(ref a), &MalType::String(ref b)) => a == b,
-            (&MalType::Symbol(ref a), &MalType::Symbol(ref b)) => a == b,
-            (&MalType::List(ref a, _), &MalType::List(ref b, _)) => a == b,
-            (&MalType::Vector(ref a, _), &MalType::Vector(ref b, _)) => a == b,
-            (&MalType::HashMap(ref a, _), &MalType::HashMap(ref b, _)) => a == b,
-            _ => false,
+        if self.is_nil() && other.is_nil() {
+            true
+        } else if self.is_true() && other.is_true() {
+            true
+        } else if self.is_false() && other.is_false() {
+            true
+        } else if let (Some(a), Some(b)) = (self.number_val(), other.number_val()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.keyword_val(), other.keyword_val()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.string_val(), other.string_val()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.symbol_val(), other.symbol_val()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.list_val(), other.list_val()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.vector_val(), other.vector_val()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.hashmap_val(), other.hashmap_val()) {
+            a == b
+        } else {
+            false
         }
     }
 }
