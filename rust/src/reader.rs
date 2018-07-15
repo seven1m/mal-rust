@@ -108,18 +108,18 @@ fn read_string(reader: &mut Reader) -> MalResult {
             None => return Err(MalError::Parse("Unexpected end of string!".to_string())),
         }
     }
-    Ok(MalType::String(str))
+    Ok(MalType::string(str))
 }
 
 fn read_keyword(reader: &mut Reader) -> MalResult {
     let token = reader.next().unwrap();
-    Ok(MalType::Keyword(token[1..].to_string()))
+    Ok(MalType::keyword(token[1..].to_string()))
 }
 
 fn read_quote(reader: &mut Reader, expanded: &str) -> MalResult {
     reader.next().unwrap();
     let value = read_form(reader).unwrap();
-    let list = MalType::list(vec![MalType::Symbol(expanded.to_string()), value]);
+    let list = MalType::list(vec![MalType::symbol(expanded), value]);
     Ok(list)
 }
 
@@ -127,11 +127,7 @@ fn read_with_meta(reader: &mut Reader) -> MalResult {
     consume_and_assert_eq!(reader, "^");
     let metadata = read_form(reader)?;
     let value = read_form(reader)?;
-    let list = MalType::list(vec![
-        MalType::Symbol("with-meta".to_string()),
-        value,
-        metadata,
-    ]);
+    let list = MalType::list(vec![MalType::symbol("with-meta"), value, metadata]);
     Ok(list)
 }
 
@@ -200,13 +196,13 @@ fn read_atom(reader: &mut Reader) -> MalResult {
     let token = reader.next().unwrap();
     let num_re = Regex::new(NUMBER_MATCH).unwrap();
     let value = if num_re.is_match(&token) {
-        MalType::Number(token.parse::<i64>().unwrap_or(0))
+        MalType::number(token.parse::<i64>().unwrap_or(0))
     } else {
         match token.as_ref() {
-            "nil" => MalType::Nil,
-            "true" => MalType::True,
-            "false" => MalType::False,
-            _ => MalType::Symbol(token),
+            "nil" => MalType::nil(),
+            "true" => MalType::bool_true(),
+            "false" => MalType::bool_false(),
+            _ => MalType::symbol(token),
         }
     };
     Ok(value)
@@ -243,18 +239,18 @@ mod tests {
         assert_eq!(
             ast,
             MalType::list(vec![
-                MalType::Nil,
-                MalType::True,
-                MalType::False,
-                MalType::Keyword("foo".to_string()),
-                MalType::String("string".to_string()),
+                MalType::nil(),
+                MalType::bool_true(),
+                MalType::bool_false(),
+                MalType::keyword("foo"),
+                MalType::string("string"),
                 MalType::list(vec![
-                    MalType::Symbol("+".to_string()),
-                    MalType::Number(2),
+                    MalType::symbol("+"),
+                    MalType::number(2),
                     MalType::list(vec![
-                        MalType::Symbol("*".to_string()),
-                        MalType::Number(3),
-                        MalType::Number(4),
+                        MalType::symbol("*"),
+                        MalType::number(3),
+                        MalType::number(4),
                     ]),
                 ]),
             ])
@@ -268,9 +264,9 @@ mod tests {
         assert_eq!(
             ast,
             MalType::vector(vec![
-                MalType::Number(1),
-                MalType::Keyword("foo".to_string()),
-                MalType::Nil,
+                MalType::number(1),
+                MalType::keyword("foo"),
+                MalType::nil(),
             ])
         );
     }
@@ -280,12 +276,12 @@ mod tests {
         let code = "{:foo 1 \"bar\" [2 3]}";
         let ast = read_str(code).unwrap();
         let mut map = BTreeMap::new();
-        map.insert(MalType::Keyword("foo".to_string()), MalType::Number(1));
+        map.insert(MalType::keyword("foo"), MalType::number(1));
         map.insert(
-            MalType::String("bar".to_string()),
-            MalType::vector(vec![MalType::Number(2), MalType::Number(3)]),
+            MalType::string("bar"),
+            MalType::vector(vec![MalType::number(2), MalType::number(3)]),
         );
-        assert_eq!(ast, MalType::HashMap(map, Box::new(MalType::Nil)));
+        assert_eq!(ast, MalType::hashmap(map));
     }
 
     #[test]
@@ -302,26 +298,14 @@ mod tests {
         assert_eq!(
             ast,
             MalType::list(vec![
+                MalType::list(vec![MalType::symbol("quote"), MalType::symbol("foo")]),
+                MalType::list(vec![MalType::symbol("unquote"), MalType::symbol("bar")]),
+                MalType::list(vec![MalType::symbol("quasiquote"), MalType::symbol("baz")]),
                 MalType::list(vec![
-                    MalType::Symbol("quote".to_string()),
-                    MalType::Symbol("foo".to_string()),
+                    MalType::symbol("splice-unquote"),
+                    MalType::symbol("fuz"),
                 ]),
-                MalType::list(vec![
-                    MalType::Symbol("unquote".to_string()),
-                    MalType::Symbol("bar".to_string()),
-                ]),
-                MalType::list(vec![
-                    MalType::Symbol("quasiquote".to_string()),
-                    MalType::Symbol("baz".to_string()),
-                ]),
-                MalType::list(vec![
-                    MalType::Symbol("splice-unquote".to_string()),
-                    MalType::Symbol("fuz".to_string()),
-                ]),
-                MalType::list(vec![
-                    MalType::Symbol("deref".to_string()),
-                    MalType::Symbol("buz".to_string()),
-                ]),
+                MalType::list(vec![MalType::symbol("deref"), MalType::symbol("buz")]),
             ])
         );
     }
@@ -331,17 +315,17 @@ mod tests {
         let code = "^{\"a\" 1} [1 2 3]";
         let ast = read_str(code).unwrap();
         let mut map = BTreeMap::new();
-        map.insert(MalType::String("a".to_string()), MalType::Number(1));
+        map.insert(MalType::string("a"), MalType::number(1));
         assert_eq!(
             ast,
             MalType::list(vec![
-                MalType::Symbol("with-meta".to_string()),
+                MalType::symbol("with-meta"),
                 MalType::vector(vec![
-                    MalType::Number(1),
-                    MalType::Number(2),
-                    MalType::Number(3),
+                    MalType::number(1),
+                    MalType::number(2),
+                    MalType::number(3),
                 ]),
-                MalType::HashMap(map, Box::new(MalType::Nil)),
+                MalType::hashmap(map),
             ])
         );
     }
@@ -353,9 +337,9 @@ mod tests {
         assert_eq!(err, MalError::BlankLine);
         let code = "[1] ; comment";
         let ast = read_str(code).unwrap();
-        assert_eq!(ast, MalType::vector(vec![MalType::Number(1)]));
+        assert_eq!(ast, MalType::vector(vec![MalType::number(1)]));
         let code = "\"str\" ; comment";
         let ast = read_str(code).unwrap();
-        assert_eq!(ast, MalType::String("str".to_string()));
+        assert_eq!(ast, MalType::string("str"));
     }
 }

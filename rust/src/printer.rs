@@ -3,28 +3,38 @@ use std::collections::BTreeMap;
 use regex::Regex;
 
 pub fn pr_str(value: &MalType, print_readably: bool) -> String {
-    match *value {
-        MalType::Nil => "nil".to_string(),
-        MalType::True => "true".to_string(),
-        MalType::False => "false".to_string(),
-        MalType::Number(ref number) => number.to_string(),
-        MalType::Symbol(ref symbol) => symbol.to_string(),
-        MalType::Keyword(ref keyword) => ":".to_string() + keyword,
-        MalType::String(ref string) => {
-            if print_readably {
-                unescape_single_quotes(&format!("{:?}", string))
-            } else {
-                string.to_owned()
-            }
+    if value.is_nil() {
+        "nil".to_string()
+    } else if value.is_true() {
+        "true".to_string()
+    } else if value.is_false() {
+        "false".to_string()
+    } else if let Some(number) = value.number_val() {
+        number.to_string()
+    } else if let Some(symbol) = value.symbol_val() {
+        symbol.to_string()
+    } else if let Some(keyword) = value.keyword_val() {
+        ":".to_string() + keyword
+    } else if let Some(string) = value.string_val() {
+        if print_readably {
+            unescape_single_quotes(&format!("{:?}", string))
+        } else {
+            string.to_owned()
         }
-        MalType::List(ref list, _) => pr_list(list, '(', ')', print_readably),
-        MalType::Vector(ref list, _) => pr_list(list, '[', ']', print_readably),
-        MalType::HashMap(ref map, _) => pr_map(map, print_readably),
-        MalType::Function { .. } => "#<function>".to_string(),
-        MalType::Lambda { .. } => "#<function>".to_string(),
-        MalType::Atom(ref val) => {
-            format!("(atom {})", pr_str(&(*val.borrow()), print_readably)).to_string()
-        }
+    } else if let Some(list) = value.list_val() {
+        pr_list(list, '(', ')', print_readably)
+    } else if let Some(vector) = value.vector_val() {
+        pr_list(vector, '[', ']', print_readably)
+    } else if let Some(map) = value.hashmap_val() {
+        pr_map(map, print_readably)
+    } else if value.is_function() {
+        "#<function>".to_string()
+    } else if value.is_lambda() {
+        "#<function>".to_string()
+    } else if let Some(atom) = value.atom_val() {
+        format!("(atom {})", pr_str(&(*atom.borrow()), print_readably)).to_string()
+    } else {
+        panic!("Unknown type")
     }
 }
 

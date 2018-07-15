@@ -24,7 +24,7 @@ impl Env {
         let env = Env::new(outer);
         let mut is_more = false;
         for bind in binds {
-            if let MalType::Symbol(name) = bind {
+            if let Some(name) = bind.symbol_val() {
                 if name == "&" {
                     is_more = true;
                 } else if is_more {

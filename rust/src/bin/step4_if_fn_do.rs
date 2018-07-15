@@ -54,33 +54,36 @@ fn read(code: String) -> MalResult {
 }
 
 fn eval(mut ast: MalType, repl_env: &Env) -> MalResult {
-    match ast {
-        MalType::List(_, _) => {
-            if list_len(&ast) == 0 {
-                Ok(ast)
-            } else if is_special_form(&ast) {
-                process_special_form(&mut ast, repl_env)
-            } else {
-                let new_ast = eval_ast(ast, repl_env)?;
-                if let MalType::List(mut vec, _) = new_ast {
-                    if vec.len() > 0 {
-                        let first = vec.remove(0);
-                        match first {
-                            MalType::Function { func, .. } => func(&mut vec, None),
-                            MalType::Lambda {
-                                env, args, body, ..
-                            } => call_lambda(env, args, body, vec),
-                            _ => Err(MalError::NotAFunction(first)),
-                        }
+    if ast.is_list() {
+        if list_len(&ast) == 0 {
+            Ok(ast)
+        } else if is_special_form(&ast) {
+            process_special_form(&mut ast, repl_env)
+        } else {
+            let new_ast = eval_ast(ast, repl_env)?;
+            if let Some(vec) = new_ast.list_val() {
+                if vec.len() > 0 {
+                    let mut vec = vec.clone();
+                    let first = vec.remove(0);
+                    if let Some(Function { func, .. }) = first.function_val() {
+                        func(&mut vec, None)
+                    } else if let Some(Lambda {
+                        env, args, body, ..
+                    }) = first.lambda_val()
+                    {
+                        call_lambda(env.clone(), args.clone(), body.clone(), vec)
                     } else {
-                        panic!("Eval'd list is empty!")
+                        Err(MalError::NotAFunction(first.clone()))
                     }
                 } else {
-                    panic!("Eval'd list is no longer a list!")
+                    panic!("Eval'd list is empty!")
                 }
+            } else {
+                panic!("Eval'd list is no longer a list!")
             }
         }
-        _ => Ok(eval_ast(ast, repl_env)?),
+    } else {
+        Ok(eval_ast(ast, repl_env)?)
     }
 }
 
@@ -89,40 +92,37 @@ fn print(ast: MalType) -> String {
 }
 
 fn eval_ast(ast: MalType, repl_env: &Env) -> MalResult {
-    match ast {
-        MalType::Symbol(symbol) => {
-            if let Ok(val) = repl_env.get(&symbol) {
-                Ok(val.to_owned())
-            } else {
-                Err(MalError::SymbolUndefined(symbol.to_string()))
-            }
+    if let Some(symbol) = ast.symbol_val() {
+        if let Ok(val) = repl_env.get(&symbol) {
+            return Ok(val.clone());
+        } else {
+            return Err(MalError::SymbolUndefined(symbol.to_string()));
         }
-        MalType::List(vec, _) => {
-            let results: Result<Vec<MalType>, MalError> =
-                vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::list(results?))
+    } else if let Some(vec) = ast.list_or_vector_val() {
+        let results: Result<Vec<MalType>, MalError> = vec.into_iter()
+            .map(|item| eval(item.clone(), repl_env))
+            .collect();
+        if ast.is_list() {
+            return Ok(MalType::list(results?));
+        } else {
+            return Ok(MalType::vector(results?));
         }
-        MalType::Vector(vec, _) => {
-            let results: Result<Vec<MalType>, MalError> =
-                vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::vector(results?))
+    } else if let Some(map) = ast.hashmap_val() {
+        let mut new_map = BTreeMap::new();
+        for (key, val) in map {
+            new_map.insert(key.clone(), eval(val.clone(), repl_env)?);
         }
-        MalType::HashMap(map, metadata) => {
-            let mut new_map = BTreeMap::new();
-            for (key, val) in map {
-                new_map.insert(key, eval(val, repl_env)?);
-            }
-            Ok(MalType::HashMap(new_map, metadata))
-        }
-        _ => Ok(ast),
-    }
+        let mut map = MalType::hashmap(new_map);
+        return Ok(map);
+    };
+    Ok(ast)
 }
 
 fn list_len(list: &MalType) -> usize {
-    if let &MalType::List(ref vec, _) = list {
+    if let Some(vec) = list.list_or_vector_val() {
         vec.len()
     } else {
-        panic!("Not a list!")
+        panic!("Expected a list but got: {:?}", list)
     }
 }
 
@@ -138,9 +138,9 @@ fn call_lambda(
 }
 
 fn is_special_form(ast: &MalType) -> bool {
-    if let &MalType::List(ref vec, _) = ast {
-        if let &MalType::Symbol(ref sym) = &vec[0] {
-            match sym.as_ref() {
+    if let Some(vec) = ast.list_val() {
+        if let Some(sym) = vec[0].symbol_val() {
+            match sym {
                 "def!" | "let*" | "do" | "if" | "fn*" => return true,
                 _ => {}
             }
@@ -150,15 +150,16 @@ fn is_special_form(ast: &MalType) -> bool {
 }
 
 fn process_special_form(ast: &mut MalType, repl_env: &Env) -> MalResult {
-    if let &mut MalType::List(ref mut vec, _) = ast {
-        if let MalType::Symbol(special) = vec.remove(0) {
-            return match special.as_ref() {
-                "def!" => special_def(vec, repl_env),
-                "let*" => special_let(vec, repl_env),
-                "do" => special_do(vec, repl_env),
-                "if" => special_if(vec, repl_env),
-                "fn*" => special_fn(vec, repl_env),
-                _ => panic!(format!("Unhandled special form: {}", &special)),
+    if let Some(vec) = ast.list_val() {
+        let mut vec = vec.clone();
+        if let Some(special) = vec.remove(0).symbol_val() {
+            return match special {
+                "def!" => special_def(&mut vec, repl_env),
+                "let*" => special_let(&mut vec, repl_env),
+                "do" => special_do(&mut vec, repl_env),
+                "if" => special_if(&mut vec, repl_env),
+                "fn*" => special_fn(&mut vec, repl_env),
+                _ => panic!(format!("Unhandled special form: {}", special)),
             };
         }
     }
@@ -167,7 +168,7 @@ fn process_special_form(ast: &mut MalType, repl_env: &Env) -> MalResult {
 
 fn special_def(vec: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
     let name = vec.remove(0);
-    if let MalType::Symbol(ref sym) = name {
+    if let Some(sym) = name.symbol_val() {
         let val = eval(vec.remove(0), repl_env)?;
         repl_env.set(sym, val.clone());
         Ok(val)
@@ -180,40 +181,38 @@ fn special_def(vec: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
 }
 
 fn special_let(vec: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
-    let mut inner_repl_env = Env::new(Some(&repl_env));
+    let inner_repl_env = Env::new(Some(&repl_env));
     let bindings = vec.remove(0);
-    match bindings {
-        MalType::Vector(mut bindings, _) | MalType::List(mut bindings, _) => {
-            if bindings.len() % 2 != 0 {
-                return Err(MalError::Parse(
-                    "Odd number of let* binding values!".to_string(),
-                ));
-            }
-            loop {
-                if bindings.len() == 0 {
-                    break;
-                }
-                if let MalType::Symbol(name) = bindings.remove(0) {
-                    let val = eval(bindings.remove(0), &mut inner_repl_env)?;
-                    inner_repl_env.set(&name, val);
-                } else {
-                    return Err(MalError::Parse("Expected symbol".to_string()));
-                }
-            }
-            let rest = vec.remove(0);
-            return eval(rest, &mut inner_repl_env);
+    if let Some(bindings) = bindings.list_or_vector_val() {
+        if bindings.len() % 2 != 0 {
+            return Err(MalError::Parse(
+                "Odd number of let* binding values!".to_string(),
+            ));
         }
-        _ => {
-            return Err(MalError::WrongArguments(format!(
-                "Expected a vector or list as the first argument to let* but got: {:?}",
-                bindings
-            )));
+        let mut bindings = bindings.clone();
+        loop {
+            if bindings.len() == 0 {
+                break;
+            }
+            if let Some(name) = bindings.remove(0).symbol_val() {
+                let val = eval(bindings.remove(0), &inner_repl_env)?;
+                inner_repl_env.set(name, val);
+            } else {
+                return Err(MalError::Parse("Expected symbol".to_string()));
+            }
         }
+        let rest = vec.remove(0);
+        eval(rest, &inner_repl_env)
+    } else {
+        Err(MalError::WrongArguments(format!(
+            "Expected a vector or list as the first argument to let* but got: {:?}",
+            bindings
+        )))
     }
 }
 
 fn special_do(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
-    let mut result = MalType::Nil;
+    let mut result = MalType::nil();
     while list.len() > 0 {
         result = eval(list.remove(0), repl_env)?;
     }
@@ -221,30 +220,30 @@ fn special_do(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
 }
 
 fn special_if(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
-    let condition = list.remove(0);
-    match eval(condition, repl_env)? {
-        MalType::False | MalType::Nil => {
-            if list.len() >= 2 {
-                eval(list.remove(1), repl_env)
-            } else {
-                Ok(MalType::Nil)
-            }
+    let condition = list[0].clone();
+    let result = eval(condition, repl_env)?;
+    if result.is_falsey() {
+        if list.len() >= 3 {
+            eval(list[2].clone(), repl_env)
+        } else {
+            Ok(MalType::nil())
         }
-        _ => eval(list.remove(0), repl_env),
+    } else {
+        eval(list[1].clone(), repl_env)
     }
 }
 
 fn special_fn(list: &mut Vec<MalType>, repl_env: &Env) -> MalResult {
-    let args = list.remove(0);
-    match args {
-        MalType::List(args, _) | MalType::Vector(args, _) => {
-            let body = list.remove(0);
-            Ok(MalType::lambda(repl_env.clone(), args, vec![body]))
-        }
-        _ => Err(MalError::WrongArguments(format!(
+    let args = &list[0];
+    if let Some(args) = args.list_or_vector_val() {
+        let mut args = args.clone();
+        let body = list[1].clone();
+        Ok(MalType::lambda(repl_env.clone(), args, vec![body]))
+    } else {
+        Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",
             args
-        ))),
+        )))
     }
 }
 
@@ -291,7 +290,7 @@ mod tests {
         let mut repl_env = top_repl_env();
         let result = rep("(do 1 (def! x (+ 1 2)) (* 2 3))".to_string(), &mut repl_env).unwrap();
         assert_eq!("6", result);
-        assert_eq!(MalType::Number(3), repl_env.get("x").unwrap());
+        assert_eq!(MalType::number(3), repl_env.get("x").unwrap());
     }
 
     #[test]

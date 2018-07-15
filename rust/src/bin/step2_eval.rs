@@ -60,29 +60,29 @@ fn read(code: String) -> MalResult {
 }
 
 fn eval(ast: MalType, repl_env: &ReplEnv) -> MalResult {
-    match ast {
-        MalType::List(_, _) => {
-            if list_len(&ast) == 0 {
-                Ok(ast)
-            } else {
-                let new_ast = eval_ast(ast, repl_env)?;
-                if let MalType::List(mut vec, _) = new_ast {
-                    if vec.len() > 0 {
-                        let first = vec.remove(0);
-                        if let MalType::Function { func, .. } = first {
-                            func(&mut vec, None)
-                        } else {
-                            Err(MalError::NotAFunction(first))
-                        }
+    if ast.is_list() {
+        if list_len(&ast) == 0 {
+            Ok(ast)
+        } else {
+            let new_ast = eval_ast(ast, repl_env)?;
+            if let Some(vec) = new_ast.list_val() {
+                if vec.len() > 0 {
+                    let mut vec = vec.clone();
+                    let first = vec.remove(0);
+                    if let Some(Function { func, .. }) = first.function_val() {
+                        func(&mut vec, None)
                     } else {
-                        panic!("Eval'd list is empty!")
+                        Err(MalError::NotAFunction(first.clone()))
                     }
                 } else {
-                    panic!("Eval'd list is no longer a list!")
+                    panic!("Eval'd list is empty!")
                 }
+            } else {
+                panic!("Eval'd list is no longer a list!")
             }
         }
-        _ => Ok(eval_ast(ast, repl_env)?),
+    } else {
+        Ok(eval_ast(ast, repl_env)?)
     }
 }
 
@@ -91,39 +91,36 @@ fn print(ast: MalType) -> String {
 }
 
 fn eval_ast(ast: MalType, repl_env: &ReplEnv) -> MalResult {
-    match ast {
-        MalType::Symbol(symbol) => {
-            if let Some(val) = repl_env.get(&symbol) {
-                Ok(val.to_owned())
-            } else {
-                Err(MalError::SymbolUndefined(symbol.to_string()))
-            }
+    if let Some(symbol) = ast.symbol_val() {
+        if let Some(val) = repl_env.get(symbol) {
+            return Ok(val.to_owned());
+        } else {
+            return Err(MalError::SymbolUndefined(symbol.to_string()));
         }
-        MalType::List(vec, _) => {
-            let results: Result<Vec<MalType>, MalError> =
-                vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::list(results?))
+    } else if let Some(vec) = ast.list_or_vector_val() {
+        let results: Result<Vec<MalType>, MalError> = vec.into_iter()
+            .map(|item| eval(item.clone(), repl_env))
+            .collect();
+        if ast.is_list() {
+            return Ok(MalType::list(results?));
+        } else {
+            return Ok(MalType::vector(results?));
         }
-        MalType::Vector(vec, _) => {
-            let results: Result<Vec<MalType>, MalError> =
-                vec.into_iter().map(|item| eval(item, repl_env)).collect();
-            Ok(MalType::vector(results?))
+    } else if let Some(map) = ast.hashmap_val() {
+        let mut new_map = BTreeMap::new();
+        for (key, val) in map {
+            new_map.insert(key.clone(), eval(val.clone(), repl_env)?);
         }
-        MalType::HashMap(map, metadata) => {
-            let mut new_map = BTreeMap::new();
-            for (key, val) in map {
-                new_map.insert(key, eval(val, repl_env)?);
-            }
-            Ok(MalType::HashMap(new_map, metadata))
-        }
-        _ => Ok(ast),
-    }
+        let mut map = MalType::hashmap(new_map);
+        return Ok(map);
+    };
+    Ok(ast)
 }
 
 fn list_len(list: &MalType) -> usize {
-    if let &MalType::List(ref vec, _) = list {
+    if let Some(vec) = list.list_or_vector_val() {
         vec.len()
     } else {
-        panic!("Not a list!")
+        panic!("Expected a list but got: {:?}", list)
     }
 }

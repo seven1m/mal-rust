@@ -1,7 +1,7 @@
 use types::*;
 
-pub fn raw_num(arg: &MalType) -> Result<i64, MalError> {
-    if let MalType::Number(num) = *arg {
+pub fn num_result(arg: &MalType) -> Result<i64, MalError> {
+    if let Some(num) = arg.number_val() {
         Ok(num)
     } else {
         Err(MalError::WrongArguments(
@@ -10,11 +10,12 @@ pub fn raw_num(arg: &MalType) -> Result<i64, MalError> {
     }
 }
 
-pub fn raw_vec(arg: &MalType) -> Result<Vec<MalType>, MalError> {
-    match *arg {
-        MalType::List(ref vec, _) | MalType::Vector(ref vec, _) => Ok(vec.clone()),
-        _ => Err(MalError::WrongArguments(
+pub fn vec_result(arg: &MalType) -> Result<Vec<MalType>, MalError> {
+    if let Some(vec) = arg.list_or_vector_val() {
+        Ok(vec.clone())
+    } else {
+        Err(MalError::WrongArguments(
             format!("Expected a list or vector but got: {:?}", arg).to_string(),
-        )),
+        ))
     }
 }

@@ -65,7 +65,7 @@ fn top_repl_env() -> Env {
         MalType::list(if argv.len() >= 3 {
             argv[2..]
                 .iter()
-                .map(|a| MalType::String(a.to_string()))
+                .map(|a| MalType::string(a.clone()))
                 .collect()
         } else {
             vec![]
@@ -104,14 +104,13 @@ fn read(code: String) -> MalResult {
 
 fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
     loop {
-        if let MalType::List(_, _) = ast {
+        if ast.is_list_or_vector() {
             if list_len(&ast) == 0 {
                 return Ok(ast);
             } else {
                 ast = macroexpand(ast, repl_env.clone())?;
-                match ast {
-                    MalType::List(_, _) => {}
-                    _ => return Ok(eval_ast(ast, repl_env)?),
+                if !ast.is_list() {
+                    return Ok(eval_ast(ast, repl_env)?);
                 }
                 let result = if is_special_form(&ast) {
                     process_special_form(&mut ast, repl_env.clone())?
@@ -136,17 +135,19 @@ fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
 
 fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
     let new_ast = eval_ast(ast, repl_env)?;
-    if let MalType::List(mut vec, _) = new_ast {
+    if let Some(vec) = new_ast.list_val() {
         if vec.len() > 0 {
+            let mut vec = vec.clone();
             let first = vec.remove(0);
-            match first {
-                MalType::Function { func, env, .. } => {
-                    func(&mut vec, env).map(|r| TailPosition::Return(r))
-                }
-                MalType::Lambda {
-                    env, args, body, ..
-                } => call_lambda(env, args, body, vec),
-                _ => Err(MalError::NotAFunction(first)),
+            if let Some(Function { env, func, .. }) = first.function_val() {
+                func(&mut vec, env.clone()).map(|r| TailPosition::Return(r))
+            } else if let Some(Lambda {
+                env, args, body, ..
+            }) = first.lambda_val()
+            {
+                call_lambda(env.clone(), args.clone(), body.clone(), vec)
+            } else {
+                Err(MalError::NotAFunction(first.clone()))
             }
         } else {
             panic!("Eval'd list is empty!")
@@ -157,35 +158,30 @@ fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
 }
 
 fn eval_ast(ast: MalType, repl_env: Env) -> MalResult {
-    match ast {
-        MalType::Symbol(symbol) => {
-            if let Ok(val) = repl_env.get(&symbol) {
-                Ok(val.clone())
-            } else {
-                Err(MalError::SymbolUndefined(symbol.to_string()))
-            }
+    if let Some(symbol) = ast.symbol_val() {
+        if let Ok(val) = repl_env.get(&symbol) {
+            return Ok(val.clone());
+        } else {
+            return Err(MalError::SymbolUndefined(symbol.to_string()));
         }
-        MalType::List(vec, _) => {
-            let results: Result<Vec<MalType>, MalError> = vec.into_iter()
-                .map(|item| eval(item, repl_env.clone()))
-                .collect();
-            Ok(MalType::list(results?))
+    } else if let Some(vec) = ast.list_or_vector_val() {
+        let results: Result<Vec<MalType>, MalError> = vec.into_iter()
+            .map(|item| eval(item.clone(), repl_env.clone()))
+            .collect();
+        if ast.is_list() {
+            return Ok(MalType::list(results?));
+        } else {
+            return Ok(MalType::vector(results?));
         }
-        MalType::Vector(vec, _) => {
-            let results: Result<Vec<MalType>, MalError> = vec.into_iter()
-                .map(|item| eval(item, repl_env.clone()))
-                .collect();
-            Ok(MalType::vector(results?))
+    } else if let Some(map) = ast.hashmap_val() {
+        let mut new_map = BTreeMap::new();
+        for (key, val) in map {
+            new_map.insert(key.clone(), eval(val.clone(), repl_env.clone())?);
         }
-        MalType::HashMap(map, metadata) => {
-            let mut new_map = BTreeMap::new();
-            for (key, val) in map {
-                new_map.insert(key, eval(val, repl_env.clone())?);
-            }
-            Ok(MalType::HashMap(new_map, metadata))
-        }
-        _ => Ok(ast),
-    }
+        let mut map = MalType::hashmap(new_map);
+        return Ok(map);
+    };
+    Ok(ast)
 }
 
 fn print(ast: MalType) -> String {
@@ -193,9 +189,10 @@ fn print(ast: MalType) -> String {
 }
 
 fn list_len(list: &MalType) -> usize {
-    match *list {
-        MalType::List(ref vec, _) | MalType::Vector(ref vec, _) => vec.len(),
-        _ => panic!("Expected a list but got: {:?}", list),
+    if let Some(vec) = list.list_or_vector_val() {
+        vec.len()
+    } else {
+        panic!("Expected a list but got: {:?}", list)
     }
 }
 
@@ -211,9 +208,9 @@ fn call_lambda(
 }
 
 fn is_special_form(ast: &MalType) -> bool {
-    if let &MalType::List(ref vec, _) = ast {
-        if let &MalType::Symbol(ref sym) = &vec[0] {
-            match sym.as_ref() {
+    if let Some(vec) = ast.list_val() {
+        if let Some(sym) = vec[0].symbol_val() {
+            match sym {
                 "def!" | "defmacro!" | "macroexpand" | "let*" | "do" | "if" | "fn*" | "quote"
                 | "try*" | "quasiquote" => return true,
                 _ => {}
@@ -224,20 +221,21 @@ fn is_special_form(ast: &MalType) -> bool {
 }
 
 fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult {
-    if let &mut MalType::List(ref mut vec, _) = ast {
-        if let MalType::Symbol(special) = vec.remove(0) {
-            return match special.as_ref() {
-                "def!" => special_def(vec, repl_env),
-                "defmacro!" => special_defmacro(vec, repl_env),
-                "macroexpand" => special_macroexpand(vec, repl_env),
-                "let*" => special_let(vec, repl_env),
-                "do" => special_do(vec, repl_env),
-                "if" => special_if(vec, repl_env),
-                "fn*" => special_fn(vec, repl_env),
-                "quote" => special_quote(vec, repl_env),
-                "quasiquote" => special_quasiquote(vec, repl_env),
-                "try*" => special_try_catch(vec, repl_env),
-                _ => panic!(format!("Unhandled special form: {}", &special)),
+    if let Some(vec) = ast.list_val() {
+        let mut vec = vec.clone();
+        if let Some(special) = vec.remove(0).symbol_val() {
+            return match special {
+                "def!" => special_def(&mut vec, repl_env),
+                "defmacro!" => special_defmacro(&mut vec, repl_env),
+                "macroexpand" => special_macroexpand(&mut vec, repl_env),
+                "let*" => special_let(&mut vec, repl_env),
+                "do" => special_do(&mut vec, repl_env),
+                "if" => special_if(&mut vec, repl_env),
+                "fn*" => special_fn(&mut vec, repl_env),
+                "quote" => special_quote(&mut vec, repl_env),
+                "quasiquote" => special_quasiquote(&mut vec, repl_env),
+                "try*" => special_try_catch(&mut vec, repl_env),
+                _ => panic!(format!("Unhandled special form: {}", special)),
             };
         }
     }
@@ -246,7 +244,7 @@ fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult 
 
 fn special_def(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let name = vec.remove(0);
-    if let MalType::Symbol(ref sym) = name {
+    if let Some(sym) = name.symbol_val() {
         let val = eval(vec.remove(0), repl_env.clone())?;
         repl_env.set(sym, val.clone());
         Ok(TailPosition::Return(val))
@@ -260,13 +258,10 @@ fn special_def(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
 
 fn special_defmacro(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let name = vec.remove(0);
-    if let MalType::Symbol(ref sym) = name {
+    if let Some(sym) = name.symbol_val() {
         let mut val = eval(vec.remove(0), repl_env.clone())?;
-        if let MalType::Lambda {
-            ref mut is_macro, ..
-        } = val
-        {
-            *is_macro = true;
+        if val.is_lambda() {
+            val.make_macro();
         } else {
             return Err(MalError::WrongArguments(format!(
                 "Expected a fn as the second argument to defmacro! but got: {:?}",
@@ -292,32 +287,31 @@ fn special_macroexpand(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionRes
 fn special_let(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let inner_repl_env = Env::new(Some(&repl_env));
     let bindings = vec.remove(0);
-    match bindings {
-        MalType::Vector(mut bindings, _) | MalType::List(mut bindings, _) => {
-            if bindings.len() % 2 != 0 {
-                return Err(MalError::Parse(
-                    "Odd number of let* binding values!".to_string(),
-                ));
-            }
-            loop {
-                if bindings.len() == 0 {
-                    break;
-                }
-                if let MalType::Symbol(name) = bindings.remove(0) {
-                    let val = eval(bindings.remove(0), inner_repl_env.clone())?;
-                    inner_repl_env.set(&name, val);
-                } else {
-                    return Err(MalError::Parse("Expected symbol".to_string()));
-                }
-            }
-            let rest = vec.remove(0);
-            Ok(TailPosition::Call(rest, Some(inner_repl_env)))
-            //return eval(rest, &mut inner_repl_env).map(|r| TailPosition::Return(r));
+    if let Some(bindings) = bindings.list_or_vector_val() {
+        if bindings.len() % 2 != 0 {
+            return Err(MalError::Parse(
+                "Odd number of let* binding values!".to_string(),
+            ));
         }
-        _ => Err(MalError::WrongArguments(format!(
+        let mut bindings = bindings.clone();
+        loop {
+            if bindings.len() == 0 {
+                break;
+            }
+            if let Some(name) = bindings.remove(0).symbol_val() {
+                let val = eval(bindings.remove(0), inner_repl_env.clone())?;
+                inner_repl_env.set(name, val);
+            } else {
+                return Err(MalError::Parse("Expected symbol".to_string()));
+            }
+        }
+        let rest = vec.remove(0);
+        Ok(TailPosition::Call(rest, Some(inner_repl_env)))
+    } else {
+        Err(MalError::WrongArguments(format!(
             "Expected a vector or list as the first argument to let* but got: {:?}",
             bindings
-        ))),
+        )))
     }
 }
 
@@ -328,39 +322,39 @@ fn special_do(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
         }
         Ok(TailPosition::Call(list.remove(0), Some(repl_env)))
     } else {
-        Ok(TailPosition::Return(MalType::Nil))
+        Ok(TailPosition::Return(MalType::nil()))
     }
 }
 
 fn special_if(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
-    let condition = list.remove(0);
-    match eval(condition, repl_env)? {
-        MalType::False | MalType::Nil => {
-            if list.len() >= 2 {
-                Ok(TailPosition::Call(list.remove(1), None))
-            } else {
-                Ok(TailPosition::Return(MalType::Nil))
-            }
+    let condition = list[0].clone();
+    let result = eval(condition, repl_env)?;
+    if result.is_falsey() {
+        if list.len() >= 3 {
+            Ok(TailPosition::Call(list[2].clone(), None))
+        } else {
+            Ok(TailPosition::Return(MalType::nil()))
         }
-        _ => Ok(TailPosition::Call(list.remove(0), None)),
+    } else {
+        Ok(TailPosition::Call(list[1].clone(), None))
     }
 }
 
 fn special_fn(list: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
-    let args = list.remove(0);
-    match args {
-        MalType::List(args, _) | MalType::Vector(args, _) => {
-            let body = list.remove(0);
-            Ok(TailPosition::Return(MalType::lambda(
-                repl_env.clone(),
-                args,
-                vec![body],
-            )))
-        }
-        _ => Err(MalError::WrongArguments(format!(
+    let args = &list[0];
+    if let Some(args) = args.list_or_vector_val() {
+        let mut args = args.clone();
+        let body = list[1].clone();
+        Ok(TailPosition::Return(MalType::lambda(
+            repl_env.clone(),
+            args,
+            vec![body],
+        )))
+    } else {
+        Err(MalError::WrongArguments(format!(
             "Expected a vector as the first argument to fn* but got: {:?}",
             args
-        ))),
+        )))
     }
 }
 
@@ -381,13 +375,13 @@ fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
     }
     let ast = arg_list.remove(0);
     if !is_pair(&ast) {
-        let list = vec![MalType::Symbol("quote".to_string()), ast];
+        let list = vec![MalType::symbol("quote"), ast];
         MalType::list(list)
     } else if is_symbol_named(&car(&ast), "unquote") {
         car(&cdr(&ast))
     } else if is_pair(&car(&ast)) && is_symbol_named(&car(&car(&ast)), "splice-unquote") {
         let list = vec![
-            MalType::Symbol("concat".to_string()),
+            MalType::symbol("concat"),
             car(&cdr(&car(&ast))),
             quasiquote(&mut vec![cdr(&ast)], repl_env),
         ];
@@ -396,7 +390,7 @@ fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
         let mut first = vec![car(&ast)];
         let mut rest = vec![cdr(&ast)];
         let list = vec![
-            MalType::Symbol("cons".to_string()),
+            MalType::symbol("cons"),
             quasiquote(&mut first, repl_env.clone()),
             quasiquote(&mut rest, repl_env),
         ];
@@ -406,7 +400,7 @@ fn quasiquote(arg_list: &mut Vec<MalType>, repl_env: Env) -> MalType {
 
 fn special_try_catch(args: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
     let expr = args.remove(0);
-    let mut catch = raw_vec(&args.remove(0))?;
+    let mut catch = vec_result(&args.remove(0))?;
     catch.remove(0); // catch* symbol not needed
     let error_name = catch.remove(0);
     let catch_expr = catch.remove(0);
@@ -415,7 +409,7 @@ fn special_try_catch(args: &mut Vec<MalType>, repl_env: Env) -> TailPositionResu
         Err(err) => {
             let err_type = match err {
                 MalError::Generic(err_val) => err_val,
-                _ => MalType::String(format!("{}", err).to_string()),
+                _ => MalType::string(err.to_string()),
             };
             let inner_env = Env::with_binds(Some(&repl_env), vec![error_name], vec![err_type]);
             Ok(TailPosition::Return(eval(catch_expr, inner_env)?))
@@ -424,42 +418,44 @@ fn special_try_catch(args: &mut Vec<MalType>, repl_env: Env) -> TailPositionResu
 }
 
 fn is_symbol_named(val: &MalType, name: &str) -> bool {
-    if let MalType::Symbol(ref sym) = *val {
+    if let Some(sym) = val.symbol_val() {
         return sym == name;
     }
     false
 }
 
 fn is_pair(arg: &MalType) -> bool {
-    match *arg {
-        MalType::List(_, _) | MalType::Vector(_, _) => list_len(arg) > 0,
-        _ => false,
+    if let Some(vec) = arg.list_or_vector_val() {
+        vec.len() > 0
+    } else {
+        false
     }
 }
 
 fn car(arg: &MalType) -> MalType {
-    match *arg {
-        MalType::List(ref list, _) | MalType::Vector(ref list, _) => list[0].clone(),
-        _ => panic!("Expected a list to car but got: {:?}", arg),
+    if let Some(vec) = arg.list_or_vector_val() {
+        vec[0].clone()
+    } else {
+        panic!("Expected a list to car but got: {:?}", arg)
     }
 }
 
 fn cdr(arg: &MalType) -> MalType {
-    match *arg {
-        MalType::List(ref list, _) | MalType::Vector(ref list, _) => {
-            MalType::list(list[1..].to_owned())
-        }
-        _ => panic!("Expected a list to cdr but got: {:?}", arg),
+    if let Some(vec) = arg.list_or_vector_val() {
+        MalType::list(vec[1..].to_owned())
+    } else {
+        panic!("Expected a list to cdr but got: {:?}", arg)
     }
 }
 
 fn is_macro_call(ast: &MalType, env: Env) -> bool {
     if is_pair(ast) {
-        if let MalType::Symbol(ref sym) = car(ast) {
-            return match env.get(sym) {
-                Ok(MalType::Lambda { is_macro, .. }) => is_macro,
-                _ => false,
-            };
+        if let Some(sym) = car(ast).symbol_val() {
+            if let Ok(val) = env.get(sym) {
+                if let Some(Lambda { is_macro, .. }) = val.lambda_val() {
+                    return *is_macro;
+                }
+            }
         }
     }
     false
@@ -467,18 +463,18 @@ fn is_macro_call(ast: &MalType, env: Env) -> bool {
 
 fn macroexpand(mut ast: MalType, env: Env) -> MalResult {
     while is_macro_call(&ast, env.clone()) {
-        if let MalType::Symbol(ref sym) = car(&ast) {
+        if let Some(sym) = car(&ast).symbol_val() {
             let lambda = env.get(sym)?;
-            match lambda {
-                MalType::Lambda {
-                    env, args, body, ..
-                } => {
-                    let rest = raw_vec(&cdr(&ast))?;
-                    let env = Env::with_binds(Some(&env), args, rest);
-                    let expr = body.clone().remove(0);
-                    ast = eval(expr, env)?;
-                }
-                _ => return Err(MalError::NotAFunction(lambda)),
+            if let Some(Lambda {
+                env, args, body, ..
+            }) = lambda.lambda_val()
+            {
+                let rest = vec_result(&cdr(&ast))?;
+                let env = Env::with_binds(Some(&env), args.clone(), rest);
+                let expr = body.clone().remove(0);
+                ast = eval(expr, env)?;
+            } else {
+                return Err(MalError::NotAFunction(lambda.clone()));
             }
         } else {
             panic!();
