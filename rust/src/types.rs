@@ -24,7 +24,7 @@ pub enum _MalType {
     HashMap(BTreeMap<MalType, MalType>, Box<MalType>),
     Function(Function, Box<MalType>),
     Lambda(Lambda, Box<MalType>),
-    Atom(Rc<RefCell<MalType>>),
+    Atom(RefCell<MalType>),
 }
 
 #[derive(Clone)]
@@ -307,10 +307,10 @@ impl MalType {
     }
 
     pub fn atom(val: MalType) -> MalType {
-        MalType(Rc::new(_MalType::Atom(Rc::new(RefCell::new(val)))))
+        MalType(Rc::new(_MalType::Atom(RefCell::new(val))))
     }
 
-    pub fn atom_val(&self) -> Option<&Rc<RefCell<MalType>>> {
+    pub fn atom_val(&self) -> Option<&RefCell<MalType>> {
         match *self.0 {
             _MalType::Atom(ref val) => Some(val),
             _ => None,
