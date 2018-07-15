@@ -124,7 +124,7 @@ fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
             } else {
                 ast = macroexpand(ast, repl_env.clone())?;
                 if !ast.is_list() {
-                    return Ok(eval_ast(ast, repl_env)?);
+                    return eval_ast(ast, repl_env);
                 }
                 let result = if is_special_form(&ast) {
                     process_special_form(&mut ast, repl_env.clone())?
@@ -142,7 +142,7 @@ fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
                 }
             }
         } else {
-            return Ok(eval_ast(ast, repl_env.clone())?);
+            return eval_ast(ast, repl_env.clone());
         }
     }
 }
