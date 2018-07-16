@@ -1,2 +1,0 @@
-;; ChucK: skipping non-TCO recursion
-;; Reason: stackoverflow (non-recoverable)

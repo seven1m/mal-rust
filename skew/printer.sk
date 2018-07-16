@@ -1,3 +1,0 @@
-def pr_str(obj MalVal, readable bool) string {
-  return obj.print(readable)
-}

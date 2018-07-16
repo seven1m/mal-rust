@@ -1,2 +1,0 @@
-;; PIL: skipping non-TCO recursion
-;; Reason: segfault (unrecoverable)

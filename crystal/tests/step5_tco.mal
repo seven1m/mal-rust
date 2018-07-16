@@ -1,2 +1,0 @@
-;; Crystal: skipping non-TCO recursion
-;; Reason: completes at 1,000,000

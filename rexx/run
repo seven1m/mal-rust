@@ -1,2 +1,0 @@
-#!/bin/bash
-exec rexx -a $(dirname $0)/${STEP:-stepA_mal}.rexxpp "${@}"

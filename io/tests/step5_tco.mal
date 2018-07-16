@@ -1,2 +1,0 @@
-;; Io: skipping non-TCO recursion
-;; Reason: never completes, never segfaults

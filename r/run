@@ -1,2 +1,0 @@
-#!/bin/bash
-exec Rscript $(dirname $0)/${STEP:-stepA_mal}.r "${@}"

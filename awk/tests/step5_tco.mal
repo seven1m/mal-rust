@@ -1,2 +1,0 @@
-;; awk: skipping non-TCO recursion
-;; Reason: completes up to 50,000

@@ -1,2 +1,0 @@
-;; miniMAL skipping non-TCO recursion
-;; Reason: Unrecoverable stack overflow at 10,000

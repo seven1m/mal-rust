@@ -1,2 +1,0 @@
-;; Ocaml skipping non-TCO recursion
-;; Reason: completes at 50,000, unrecoverable segfaul at 100,000

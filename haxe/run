@@ -1,8 +1,0 @@
-#!/bin/bash
-case ${haxe_MODE:-neko} in
-    neko)   exec neko    $(dirname $0)/${STEP:-stepA_mal}.n   "${@}" ;;
-    python) exec python3 $(dirname $0)/${STEP:-stepA_mal}.py  "${@}" ;;
-    js)     exec node    $(dirname $0)/${STEP:-stepA_mal}.js  "${@}" ;;
-    cpp)    exec         $(dirname $0)/cpp/${STEP:-stepA_mal} "${@}" ;;
-    *) echo "Invalid haxe_MODE: ${haxe_MODE}"; exit 2 ;;
-esac

@@ -1,2 +1,0 @@
-#!/bin/bash
-exec node $(dirname $0)/bootstrap.js ${STEP:-stepA_mal} "${@}"

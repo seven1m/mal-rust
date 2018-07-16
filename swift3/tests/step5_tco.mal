@@ -1,2 +1,0 @@
-;; Swift 3: skipping non-TCO recursion
-;; Reason: unrecoverable segfault at 10,000

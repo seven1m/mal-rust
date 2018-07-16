@@ -1,2 +1,0 @@
-defmodule Mal do
-end
