@@ -42,7 +42,7 @@ pub struct Function {
 }
 
 #[derive(Clone)]
-pub struct MalType(Rc<_MalType>);
+pub struct MalType(pub Rc<_MalType>);
 
 impl MalType {
     pub fn nil() -> MalType {

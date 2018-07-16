@@ -126,12 +126,9 @@ fn eval(mut ast: MalType, mut repl_env: Env) -> MalResult {
                 if !ast.is_list() {
                     return eval_ast(ast, repl_env);
                 }
-                let result = if is_special_form(&ast) {
-                    process_special_form(&mut ast, repl_env.clone())?
-                } else {
-                    eval_list(ast, repl_env.clone())?
-                };
-                match result {
+                let result = process_special_form(&mut ast, repl_env.clone())
+                    .unwrap_or_else(|| eval_list(ast, repl_env.clone()));
+                match result? {
                     TailPosition::Return(ret) => return Ok(ret),
                     TailPosition::Call(new_ast, new_repl_env) => {
                         ast = new_ast;
@@ -172,35 +169,40 @@ fn eval_list(ast: MalType, repl_env: Env) -> TailPositionResult {
 }
 
 fn eval_ast(ast: MalType, repl_env: Env) -> MalResult {
-    if let Some(symbol) = ast.symbol_val() {
-        if let Ok(val) = repl_env.get(&symbol) {
-            return Ok(val.clone());
-        } else {
-            return Err(MalError::SymbolUndefined(symbol.to_string()));
+    // match is a bit faster in this hot code
+    match *ast.0 {
+        _MalType::Symbol(ref symbol) => {
+            if let Ok(val) = repl_env.get(&symbol) {
+                Ok(val.clone())
+            } else {
+                Err(MalError::SymbolUndefined(symbol.to_string()))
+            }
         }
-    } else if let Some(vec) = ast.list_or_vector_val() {
-        let results: Result<Vec<MalType>, MalError> = vec.into_iter()
-            .map(|item| eval(item.clone(), repl_env.clone()))
-            .collect();
-        if ast.is_list() {
-            return Ok(MalType::list(results?));
-        } else {
-            return Ok(MalType::vector(results?));
+        _MalType::List(ref vec, _) | _MalType::Vector(ref vec, _) => {
+            let results: Result<Vec<MalType>, MalError> = vec.into_iter()
+                .map(|item| eval(item.clone(), repl_env.clone()))
+                .collect();
+            if ast.is_list() {
+                Ok(MalType::list(results?))
+            } else {
+                Ok(MalType::vector(results?))
+            }
         }
-    } else if let Some(map) = ast.hashmap_val() {
-        let mut new_map = BTreeMap::new();
-        for (key, val) in map {
-            new_map.insert(key.clone(), eval(val.clone(), repl_env.clone())?);
+        _MalType::HashMap(ref map, _) => {
+            let mut new_map = BTreeMap::new();
+            for (key, val) in map {
+                new_map.insert(key.clone(), eval(val.clone(), repl_env.clone())?);
+            }
+            let mut map = MalType::hashmap_with_meta(
+                new_map,
+                ast.get_metadata()
+                    .expect("expected this to be a hashmap with metadata")
+                    .clone(),
+            );
+            Ok(map)
         }
-        let mut map = MalType::hashmap_with_meta(
-            new_map,
-            ast.get_metadata()
-                .expect("expected this to be a hashmap with metadata")
-                .clone(),
-        );
-        return Ok(map);
-    };
-    Ok(ast)
+        _ => Ok(ast.clone()),
+    }
 }
 
 fn print(ast: MalType) -> String {
@@ -226,24 +228,11 @@ fn call_lambda(
     Ok(TailPosition::Call(expr, Some(env)))
 }
 
-fn is_special_form(ast: &MalType) -> bool {
+fn process_special_form(ast: &mut MalType, repl_env: Env) -> Option<TailPositionResult> {
     if let Some(vec) = ast.list_val() {
-        if let Some(sym) = vec[0].symbol_val() {
-            match sym {
-                "def!" | "defmacro!" | "macroexpand" | "let*" | "do" | "if" | "fn*" | "quote"
-                | "try*" | "quasiquote" => return true,
-                _ => {}
-            }
-        }
-    }
-    false
-}
-
-fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult {
-    if let Some(vec) = ast.list_val() {
-        let mut vec = vec.clone();
-        if let Some(special) = vec.remove(0).symbol_val() {
-            return match special {
+        if let Some(special) = vec[0].symbol_val() {
+            let mut vec = vec.iter().skip(1).cloned().collect();
+            let result = match special {
                 "def!" => special_def(&mut vec, repl_env),
                 "defmacro!" => special_defmacro(&mut vec, repl_env),
                 "macroexpand" => special_macroexpand(&mut vec, repl_env),
@@ -254,11 +243,12 @@ fn process_special_form(ast: &mut MalType, repl_env: Env) -> TailPositionResult 
                 "quote" => special_quote(&mut vec, repl_env),
                 "quasiquote" => special_quasiquote(&mut vec, repl_env),
                 "try*" => special_try_catch(&mut vec, repl_env),
-                _ => panic!(format!("Unhandled special form: {}", special)),
+                _ => return None,
             };
+            return Some(result);
         }
     }
-    panic!("Expected a List for a special form!")
+    None
 }
 
 fn special_def(vec: &mut Vec<MalType>, repl_env: Env) -> TailPositionResult {
