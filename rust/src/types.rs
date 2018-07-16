@@ -19,11 +19,11 @@ pub enum _MalType {
     Keyword(String),
     String(String),
     Symbol(String),
-    List(Vec<MalType>, Box<MalType>),
-    Vector(Vec<MalType>, Box<MalType>),
-    HashMap(BTreeMap<MalType, MalType>, Box<MalType>),
-    Function(Function, Box<MalType>),
-    Lambda(Lambda, Box<MalType>),
+    List(Vec<MalType>, MalType),
+    Vector(Vec<MalType>, MalType),
+    HashMap(BTreeMap<MalType, MalType>, MalType),
+    Function(Function, MalType),
+    Lambda(Lambda, MalType),
     Atom(RefCell<MalType>),
 }
 
@@ -162,7 +162,7 @@ impl MalType {
     }
 
     pub fn list_with_meta(vec: Vec<MalType>, meta: MalType) -> MalType {
-        MalType(Rc::new(_MalType::List(vec, Box::new(meta))))
+        MalType(Rc::new(_MalType::List(vec, meta)))
     }
 
     pub fn list_val(&self) -> Option<&Vec<MalType>> {
@@ -184,7 +184,7 @@ impl MalType {
     }
 
     pub fn vector_with_meta(vec: Vec<MalType>, meta: MalType) -> MalType {
-        MalType(Rc::new(_MalType::Vector(vec, Box::new(meta))))
+        MalType(Rc::new(_MalType::Vector(vec, meta)))
     }
 
     pub fn vector_val(&self) -> Option<&Vec<MalType>> {
@@ -220,7 +220,7 @@ impl MalType {
     }
 
     pub fn hashmap_with_meta(map: BTreeMap<MalType, MalType>, meta: MalType) -> MalType {
-        MalType(Rc::new(_MalType::HashMap(map, Box::new(meta))))
+        MalType(Rc::new(_MalType::HashMap(map, meta)))
     }
 
     pub fn hashmap_val(&self) -> Option<&BTreeMap<MalType, MalType>> {
@@ -242,7 +242,7 @@ impl MalType {
     }
 
     pub fn function_with_meta(function: Function, meta: MalType) -> MalType {
-        MalType(Rc::new(_MalType::Function(function, Box::new(meta))))
+        MalType(Rc::new(_MalType::Function(function, meta)))
     }
 
     pub fn function_val(&self) -> Option<&Function> {
@@ -264,7 +264,7 @@ impl MalType {
     }
 
     pub fn lambda_with_meta(lambda: Lambda, meta: MalType) -> MalType {
-        MalType(Rc::new(_MalType::Lambda(lambda, Box::new(meta))))
+        MalType(Rc::new(_MalType::Lambda(lambda, meta)))
     }
 
     pub fn lambda_val(&self) -> Option<&Lambda> {
@@ -292,7 +292,7 @@ impl MalType {
                     body: body.clone(),
                     is_macro: true,
                 },
-                (**meta).clone(),
+                meta.clone(),
             )
         } else {
             panic!("Not a lambda!");
