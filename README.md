@@ -2,6 +2,9 @@
 
 This is my own implementation of [mal](https://github.com/kanaka/mal) in Rust.
 
+I wrote a little about my experience building this
+[here](http://seven1m.sdf.org/experiments/make_a_lisp_in_rust.html).
+
 The main mal repo already has a Rust implementation, so I'll keep this here.
 
 ## Build
