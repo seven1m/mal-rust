@@ -9,15 +9,25 @@ The main mal repo already has a Rust implementation, so I'll keep this here.
 
 ## Build
 
-You'll need the Rust nightly compiler to compile the project.
+This has been tested with Rust version 1.33.0.
 
-```
-rustup override set nightly
+```bash
 make rust
 ```
 
-## Run
+## Run the REPL
 
+```bash
+rust/target/release/stepA_mal
 ```
-rust/run examples/hello.mal
+
+## Run a Mal Program
+
+```bash
+rust/target/release/stepA_mal examples/hello.mal
 ```
+
+## License
+
+Mal is copyright Joel Martin and licensed under the MPL 2.0 (Mozilla Public License 2.0).
+See LICENSE for more details.
